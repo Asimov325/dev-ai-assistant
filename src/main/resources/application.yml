@@ -9,3 +9,9 @@ server:
 
 app:
   name: Development AI Assistant
+  ai:
+    provider: gemini
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
+      base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
