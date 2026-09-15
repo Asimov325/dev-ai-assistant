@@ -55,7 +55,8 @@ La aplicación y el módulo Git quedan bajo el package neutral `com.dev.aiassist
 ## Cambio #003 — Lectura de repositorio Git local por ruta completa
 
 **Estado:** Aplicado  
-**Rama:** `desarrollo`
+**Rama:** `desarrollo`  
+**Commit:** `0bcf95de2d273d89ce0bc211df9701b14e831717`
 
 ### Objetivo
 Permitir que Development AI Assistant inspeccione un repositorio Git existente en la máquina a partir de su ruta completa, sin modificar el repositorio analizado.
@@ -72,6 +73,37 @@ La inspección valida la ruta recibida, comprueba que corresponda a un repositor
 
 ### Resultado
 El backend puede recibir una ruta completa como `C:\\Proyectos\\Git\\wari-fortalecimiento` y construir un `GitSourceInfo` con la ruta normalizada, el nombre del repositorio y las ramas locales disponibles.
+
+---
+
+## Cambio #004 — Comparación de ramas y evidencia técnica Git
+
+**Estado:** Aplicado  
+**Rama:** `desarrollo`
+**Caso patrón:** `MEWARI-1455`
+
+### Objetivo
+Comparar una rama base seleccionada por el usuario contra la rama de un requerimiento y estructurar la evidencia técnica real del desarrollo para su posterior análisis documental.
+
+### Archivos
+- Creado: `src/main/java/com/dev/aiassistant/git/model/GitChangedFile.java`
+- Creado: `src/main/java/com/dev/aiassistant/git/model/GitChangeContext.java`
+- Modificado: `src/main/java/com/dev/aiassistant/git/service/GitSourceService.java`
+- Modificado: `src/main/java/com/dev/aiassistant/git/service/JGitSourceService.java`
+- Actualizado: `HISTORIAL_CAMBIOS.md`
+
+### Decisión de diseño
+La comparación se realiza directamente entre las dos referencias seleccionadas y no depende de que los mensajes de commit contengan el identificador Jira. Se mantiene el análisis en modo lectura y no se ejecutan checkout, fetch, pull ni modificaciones sobre el repositorio.
+
+Cada archivo afectado conserva estado, ruta anterior y nueva, extensión, líneas agregadas/eliminadas y diff. El contexto completo conserva además repositorio, rama base y rama del requerimiento.
+
+La rama se resuelve primero como referencia local y, si no existe localmente, se intenta utilizar la referencia remota `origin` ya disponible en el repositorio local. No se actualiza el remoto automáticamente.
+
+### Caso patrón de validación
+El primer caso real de validación será `MEWARI-1455`, utilizando el repositorio corporativo correspondiente, la rama base real y la rama del requerimiento. Los resultados generados posteriormente se contrastarán contra el DT y DPC reales disponibles para ese requerimiento.
+
+### Resultado
+El backend queda preparado para obtener evidencia estructurada de los archivos realmente afectados entre dos ramas. Esta evidencia será la entrada técnica para los siguientes componentes de análisis y generación documental.
 
 ---
 
