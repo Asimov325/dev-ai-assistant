@@ -22,7 +22,7 @@ public class GitAnalysisController {
         this.gitSourceService = gitSourceService;
     }
 
-    @GetMapping("/")
+    @GetMapping("/technical-validation")
     public String index() {
         return "git-analysis";
     }

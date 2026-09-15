@@ -27,22 +27,8 @@ Se incorporó la pantalla Thymeleaf de análisis Git y el controlador web. La co
 ### Objetivo
 Incorporar una abstracción de proveedor de inteligencia artificial que permita utilizar Gemini durante el MVP sin acoplar el resto de Development AI Assistant a un motor específico.
 
-### Archivos
-- Creado: `src/main/java/com/dev/aiassistant/ai/AiProvider.java`
-- Creado: `src/main/java/com/dev/aiassistant/ai/AiService.java`
-- Creado: `src/main/java/com/dev/aiassistant/ai/gemini/GeminiAiProvider.java`
-- Creado: `src/main/java/com/dev/aiassistant/ai/web/AiTestController.java`
-- Modificado: `src/main/resources/application.yml`
-- Modificado: `src/main/resources/templates/git-analysis.html`
-- Actualizado: `HISTORIAL_CAMBIOS.md`
-
-### Decisión de diseño
-`AiProvider` constituye el contrato independiente del motor. `GeminiAiProvider` implementa temporalmente ese contrato para el MVP y `AiService` es el punto de entrada para las capacidades que posteriormente utilizarán el agente documental y otros agentes.
-
-La API key no se almacena en el repositorio. Se obtiene mediante la variable de entorno `GEMINI_API_KEY`. El modelo y la URL base también pueden configurarse externamente mediante `GEMINI_MODEL` y `GEMINI_BASE_URL`.
-
 ### Resultado
-Development AI Assistant queda preparado para comprobar una conexión real con Gemini y, posteriormente, sustituirlo por otro proveedor o por el motor corporativo sin modificar la lógica de Git, Jira o generación documental.
+Development AI Assistant queda preparado para comprobar una conexión real con Gemini y posteriormente sustituirlo por otro proveedor sin modificar la lógica de Git, Jira o generación documental.
 
 ---
 
@@ -51,29 +37,58 @@ Development AI Assistant queda preparado para comprobar una conexión real con G
 **Estado:** Implementado; validación local en curso  
 **Rama:** `desarrollo`
 
-### Objetivo
-Estabilizar la versión construida antes de avanzar con las capacidades funcionales del MVP.
-
 ### Implementado
-- Corregido el import de JGit `FileHeader` para utilizar `org.eclipse.jgit.patch.FileHeader`.
-- Cerrado correctamente `ObjectReader` mediante try-with-resources.
-- Evitado que un diff con líneas extensas ensanche toda la página; el detalle utiliza su propio scroll horizontal y vertical.
-- Conservado el repositorio, ramas y resultado de comparación cuando la prueba temporal de IA devuelve un error.
-- El error de IA se presenta de forma controlada y separado del estado del análisis Git.
+- Corregido el import de JGit `FileHeader`.
+- Cerrado correctamente `ObjectReader`.
+- Contenido el diff dentro de su propia área de scroll.
+- Conservado el estado Git durante la prueba temporal de IA.
+- Manejo controlado de errores del proveedor IA.
 
 ### Validado
-- El usuario ejecutó `mvn clean test` después de la corrección JGit y obtuvo `BUILD SUCCESS`.
-- La aplicación Spring Boot fue levantada localmente.
-- La inspección del repositorio y comparación `main` → `desarrollo` funcionaron y mostraron archivos, líneas y diffs.
+- `mvn clean test` obtuvo `BUILD SUCCESS` después de la corrección JGit.
+- Aplicación Spring Boot levantada localmente.
+- Inspección y comparación Git verificadas.
+
+### Pendiente externo
+- Validación real de Gemini con API key y contenido no corporativo.
+
+---
+
+## Cambio #008 — UX/UI, navegación y separación del MVP
+
+**Estado:** Implementado; pendiente de validación local  
+**Rama:** `desarrollo`
+
+### Objetivo
+Transformar la interfaz técnica inicial en la estructura visual del MVP orientada al equipo de desarrollo, separando las herramientas internas de diagnóstico del flujo funcional del producto.
+
+### Implementado
+- Nueva página de Inicio con acceso principal a generación documental y estado del entorno.
+- Sidebar vertical responsive con Nuevo análisis, Inicio, Documentación, Historial y Configuración.
+- Nueva pantalla de Nueva documentación preparada para el flujo Requerimiento → Código fuente → Documento Técnico.
+- Nueva pantalla de Configuración para centralizar información reutilizable de Git e IA y preparar Jira/Confluence.
+- Pantallas iniciales de Documentación e Historial con estados vacíos coherentes.
+- Estilos reutilizables en `static/css/app.css` para mantener consistencia visual.
+- La antigua pantalla de pruebas queda fuera del menú del MVP y disponible únicamente en `/technical-validation` como herramienta interna temporal.
+- Eliminado el comentario visible “El análisis Git se ha conservado.” de la validación de IA.
+
+### Decisiones UX/UI
+- La ruta de repositorio y demás datos repetitivos pertenecen a Configuración, no al flujo diario.
+- La rama del requerimiento sigue siendo una selección propia de cada análisis.
+- Los diffs y pruebas directas de proveedor son herramientas técnicas y no forman parte de la navegación funcional.
+- La validación técnica no es una dependencia del MVP y podrá deshabilitarse o eliminarse posteriormente.
+
+### No incluido en este bloque
+- Persistencia real de Configuración.
+- Integración Jira.
+- Generación real del DT desde el nuevo flujo.
+- Persistencia de Documentación/Historial.
+- Publicación Confluence.
 
 ### Pendiente de validación
-- Repetir `mvn clean test` con las correcciones UX de este bloque.
-- Confirmar visualmente que el diff ya no modifica el ancho de la página.
-- Confirmar que un error de Gemini conserva el análisis Git.
-- Validar una llamada real a Gemini cuando exista una API key configurada, utilizando contenido de prueba no corporativo.
-
-### Nota de MVP
-La pantalla actual sigue siendo una pantalla de validación técnica. La interfaz orientada al usuario final se abordará en el siguiente bloque con navegación lateral, configuración reutilizable y flujo de generación documental.
+- Ejecutar `mvn clean test` localmente.
+- Levantar Spring Boot y revisar navegación, responsive y las rutas principales.
+- Confirmar acceso manual a `/technical-validation` y que no aparece en el menú del MVP.
 
 ---
 
