@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Development AI Assistant - Análisis Git</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<nav class="navbar navbar-dark bg-dark mb-4">
+    <div class="container">
+        <span class="navbar-brand mb-0 h1">Development AI Assistant</span>
+    </div>
+</nav>
+
+<main class="container pb-5">
+    <div class="mb-4">
+        <h1 class="h3">Análisis de cambios Git</h1>
+        <p class="text-secondary mb-0">Selecciona un repositorio local y compara la rama base con la rama del requerimiento.</p>
+    </div>
+
+    <div th:if="${error}" class="alert alert-danger" role="alert" th:text="${error}"></div>
+
+    <section class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="post" th:action="@{/git/inspect}" class="row g-3 align-items-end">
+                <div class="col-lg-9">
+                    <label for="sourcePath" class="form-label">Ruta completa del repositorio</label>
+                    <input id="sourcePath" name="sourcePath" type="text" class="form-control"
+                           placeholder="C:\Proyectos\Git\wari-fortalecimiento" th:value="${sourcePath}" required>
+                </div>
+                <div class="col-lg-3 d-grid">
+                    <button type="submit" class="btn btn-primary">Analizar repositorio</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <section th:if="${sourceInfo}" class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-4"><strong>Repositorio:</strong> <span th:text="${sourceInfo.sourceName}"></span></div>
+                <div class="col-md-8 text-break"><strong>Ruta:</strong> <span th:text="${sourceInfo.sourcePath}"></span></div>
+            </div>
+
+            <form method="post" th:action="@{/git/compare}" class="row g-3 align-items-end">
+                <input type="hidden" name="sourcePath" th:value="${sourceInfo.sourcePath}">
+                <div class="col-md-5">
+                    <label for="baseBranch" class="form-label">Rama base</label>
+                    <select id="baseBranch" name="baseBranch" class="form-select" required>
+                        <option value="">Seleccionar...</option>
+                        <option th:each="branch : ${sourceInfo.branches}" th:value="${branch}" th:text="${branch}"
+                                th:selected="${branch == baseBranch}"></option>
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <label for="requirementBranch" class="form-label">Rama del requerimiento</label>
+                    <select id="requirementBranch" name="requirementBranch" class="form-select" required>
+                        <option value="">Seleccionar...</option>
+                        <option th:each="branch : ${sourceInfo.branches}" th:value="${branch}" th:text="${branch}"
+                                th:selected="${branch == requirementBranch}"></option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="submit" class="btn btn-success">Comparar</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <section th:if="${changeContext}" class="card shadow-sm">
+        <div class="card-body">
+            <h2 class="h5 mb-3">Resultado de la comparación</h2>
+            <div class="row g-3 mb-4">
+                <div class="col-md"><div class="border rounded p-3"><strong>Total</strong><div class="fs-4" th:text="${changeContext.changedFiles.size()}"></div></div></div>
+                <div class="col-md"><div class="border rounded p-3"><strong>Nuevos</strong><div class="fs-4" th:text="${summary.getOrDefault('ADD', 0)}"></div></div></div>
+                <div class="col-md"><div class="border rounded p-3"><strong>Modificados</strong><div class="fs-4" th:text="${summary.getOrDefault('MODIFY', 0)}"></div></div></div>
+                <div class="col-md"><div class="border rounded p-3"><strong>Eliminados</strong><div class="fs-4" th:text="${summary.getOrDefault('DELETE', 0)}"></div></div></div>
+                <div class="col-md"><div class="border rounded p-3"><strong>Renombrados</strong><div class="fs-4" th:text="${summary.getOrDefault('RENAME', 0)}"></div></div></div>
+            </div>
+
+            <p><strong>Comparación:</strong> <span th:text="${changeContext.baseBranch}"></span> → <span th:text="${changeContext.requirementBranch}"></span></p>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                    <tr>
+                        <th>Estado</th>
+                        <th>Archivo</th>
+                        <th>Extensión</th>
+                        <th class="text-end">+ Líneas</th>
+                        <th class="text-end">- Líneas</th>
+                        <th>Detalle</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="file, status : ${changeContext.changedFiles}">
+                        <td><span class="badge text-bg-secondary" th:text="${file.changeType}"></span></td>
+                        <td class="text-break" th:text="${file.newPath != null ? file.newPath : file.oldPath}"></td>
+                        <td th:text="${file.extension}"></td>
+                        <td class="text-end text-success" th:text="${file.linesAdded}"></td>
+                        <td class="text-end text-danger" th:text="${file.linesDeleted}"></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse"
+                                    th:attr="data-bs-target=${'#diff-' + status.index}">Ver diff</button>
+                        </td>
+                    </tr>
+                    <tr th:each="file, status : ${changeContext.changedFiles}" class="collapse" th:id="${'diff-' + status.index}">
+                        <td colspan="6"><pre class="bg-dark text-light rounded p-3 overflow-auto mb-0"><code th:text="${file.diff}"></code></pre></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div th:if="${changeContext.changedFiles.isEmpty()}" class="alert alert-info mb-0">
+                No se identificaron diferencias entre las ramas seleccionadas.
+            </div>
+        </div>
+    </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

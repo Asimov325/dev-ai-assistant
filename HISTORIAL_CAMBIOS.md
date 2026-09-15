@@ -79,7 +79,8 @@ El backend puede recibir una ruta completa como `C:\\Proyectos\\Git\\wari-fortal
 ## Cambio #004 — Comparación de ramas y evidencia técnica Git
 
 **Estado:** Aplicado  
-**Rama:** `desarrollo`
+**Rama:** `desarrollo`  
+**Commit:** `867b69338d82ac0025046c83ee42184156bd9152`  
 **Caso patrón:** `MEWARI-1455`
 
 ### Objetivo
@@ -104,6 +105,43 @@ El primer caso real de validación será `MEWARI-1455`, utilizando el repositori
 
 ### Resultado
 El backend queda preparado para obtener evidencia estructurada de los archivos realmente afectados entre dos ramas. Esta evidencia será la entrada técnica para los siguientes componentes de análisis y generación documental.
+
+---
+
+## Cambio #005 — Pantalla de prueba del análisis Git
+
+**Estado:** Aplicado  
+**Rama:** `desarrollo`
+
+### Objetivo
+Incorporar una interfaz web mínima que permita ejecutar y validar visualmente las capacidades implementadas en los cambios #003 y #004 antes de conectar Jira y la inteligencia artificial.
+
+### Archivos
+- Creado: `src/main/java/com/dev/aiassistant/git/web/GitAnalysisController.java`
+- Creado: `src/main/resources/templates/git-analysis.html`
+- Actualizado: `HISTORIAL_CAMBIOS.md`
+
+### Decisión de diseño
+La pantalla utiliza Spring MVC y Thymeleaf, tecnologías ya incluidas en el proyecto. Bootstrap se utiliza únicamente para presentación y un componente colapsable permite inspeccionar el diff de un archivo sin mostrar todos los cambios simultáneamente.
+
+La ruta del repositorio se recibe en tiempo de ejecución. Después de inspeccionarlo, el usuario selecciona explícitamente la rama base y la rama del requerimiento. No se asumen nombres como `produccion`, `main`, `master` o `MEWARI-1455`.
+
+### Funcionalidad disponible
+- Ingresar la ruta completa de un repositorio Git local.
+- Validar e inspeccionar el repositorio.
+- Visualizar las ramas locales detectadas.
+- Seleccionar rama base y rama del requerimiento.
+- Ejecutar la comparación.
+- Visualizar totales de archivos nuevos, modificados, eliminados y renombrados.
+- Consultar ruta, extensión y líneas agregadas/eliminadas por archivo.
+- Desplegar el diff individual de cada archivo bajo demanda.
+- Mostrar errores de validación sin modificar el repositorio analizado.
+
+### Caso patrón
+La primera prueba corporativa se realizará con `MEWARI-1455` para posteriormente contrastar la evidencia detectada con el DT y DPC reales existentes.
+
+### Resultado
+El MVP dispone de una primera interfaz ejecutable para comprobar visualmente la lectura y comparación de repositorios Git antes de incorporar las fuentes Jira y el proveedor de IA.
 
 ---
 
