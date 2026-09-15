@@ -52,6 +52,29 @@ La aplicación y el módulo Git quedan bajo el package neutral `com.dev.aiassist
 
 ---
 
+## Cambio #003 — Lectura de repositorio Git local por ruta completa
+
+**Estado:** Aplicado  
+**Rama:** `desarrollo`
+
+### Objetivo
+Permitir que Development AI Assistant inspeccione un repositorio Git existente en la máquina a partir de su ruta completa, sin modificar el repositorio analizado.
+
+### Archivos
+- Creado: `src/main/java/com/dev/aiassistant/git/service/GitSourceService.java`
+- Creado: `src/main/java/com/dev/aiassistant/git/service/JGitSourceService.java`
+- Actualizado: `HISTORIAL_CAMBIOS.md`
+
+### Decisión de diseño
+`GitSourceService` define la capacidad de inspeccionar una fuente Git sin acoplar el resto de la aplicación a JGit. `JGitSourceService` implementa esa capacidad para repositorios locales utilizando JGit.
+
+La inspección valida la ruta recibida, comprueba que corresponda a un repositorio Git local y obtiene su nombre y ramas locales. La operación es de lectura: no realiza checkout, fetch, pull, commit ni modificaciones sobre el repositorio analizado.
+
+### Resultado
+El backend puede recibir una ruta completa como `C:\\Proyectos\\Git\\wari-fortalecimiento` y construir un `GitSourceInfo` con la ruta normalizada, el nombre del repositorio y las ramas locales disponibles.
+
+---
+
 ## Forma de trabajo acordada
 
 Antes de cada nuevo bloque de desarrollo:
