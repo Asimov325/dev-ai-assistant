@@ -8,11 +8,15 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.diff.Edit;
-import org.eclipse.jgit.diff.FileHeader;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.patch.FileHeader;
+import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
+import org.eclipse.jgit.treewalk.AbstractTreeIterator;
+import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.util.io.DisabledOutputStream;
 import org.springframework.stereotype.Service;
 
@@ -91,13 +95,12 @@ public class JGitSourceService implements GitSourceService {
         }
     }
 
-    private org.eclipse.jgit.treewalk.AbstractTreeIterator prepareTreeParser(Repository repository, ObjectId objectId)
-            throws IOException {
-        try (var walk = new org.eclipse.jgit.revwalk.RevWalk(repository)) {
+    private AbstractTreeIterator prepareTreeParser(Repository repository, ObjectId objectId) throws IOException {
+        try (RevWalk walk = new RevWalk(repository);
+             ObjectReader reader = repository.newObjectReader()) {
             var commit = walk.parseCommit(objectId);
             var tree = walk.parseTree(commit.getTree().getId());
-            var reader = repository.newObjectReader();
-            var parser = new org.eclipse.jgit.treewalk.CanonicalTreeParser();
+            CanonicalTreeParser parser = new CanonicalTreeParser();
             parser.reset(reader, tree.getId());
             return parser;
         }
