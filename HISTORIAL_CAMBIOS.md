@@ -41,24 +41,42 @@ Incorporar una abstracción de proveedor de inteligencia artificial que permita 
 
 La API key no se almacena en el repositorio. Se obtiene mediante la variable de entorno `GEMINI_API_KEY`. El modelo y la URL base también pueden configurarse externamente mediante `GEMINI_MODEL` y `GEMINI_BASE_URL`.
 
-La integración utiliza la API REST de Gemini y mantiene los detalles específicos del proveedor encapsulados dentro de `GeminiAiProvider`.
-
-### Funcionalidad disponible
-- Proveedor IA desacoplado mediante `AiProvider`.
-- Implementación inicial con Gemini.
-- Configuración externa de credenciales y modelo.
-- Validación de prompt vacío.
-- Manejo entendible de ausencia de API key, errores HTTP y respuestas vacías.
-- Prueba manual desde la interfaz web con contenido controlado.
-
-### Seguridad para el MVP
-La pantalla advierte que la prueba temporal no debe utilizar código ni información corporativa sensible. La integración con Gemini gratuito se validará inicialmente con contenido no corporativo.
-
 ### Resultado
 Development AI Assistant queda preparado para comprobar una conexión real con Gemini y, posteriormente, sustituirlo por otro proveedor o por el motor corporativo sin modificar la lógica de Git, Jira o generación documental.
 
 ---
 
+## Cambio #007 — Estabilización técnica y de la pantalla de validación
+
+**Estado:** Implementado; validación local en curso  
+**Rama:** `desarrollo`
+
+### Objetivo
+Estabilizar la versión construida antes de avanzar con las capacidades funcionales del MVP.
+
+### Implementado
+- Corregido el import de JGit `FileHeader` para utilizar `org.eclipse.jgit.patch.FileHeader`.
+- Cerrado correctamente `ObjectReader` mediante try-with-resources.
+- Evitado que un diff con líneas extensas ensanche toda la página; el detalle utiliza su propio scroll horizontal y vertical.
+- Conservado el repositorio, ramas y resultado de comparación cuando la prueba temporal de IA devuelve un error.
+- El error de IA se presenta de forma controlada y separado del estado del análisis Git.
+
+### Validado
+- El usuario ejecutó `mvn clean test` después de la corrección JGit y obtuvo `BUILD SUCCESS`.
+- La aplicación Spring Boot fue levantada localmente.
+- La inspección del repositorio y comparación `main` → `desarrollo` funcionaron y mostraron archivos, líneas y diffs.
+
+### Pendiente de validación
+- Repetir `mvn clean test` con las correcciones UX de este bloque.
+- Confirmar visualmente que el diff ya no modifica el ancho de la página.
+- Confirmar que un error de Gemini conserva el análisis Git.
+- Validar una llamada real a Gemini cuando exista una API key configurada, utilizando contenido de prueba no corporativo.
+
+### Nota de MVP
+La pantalla actual sigue siendo una pantalla de validación técnica. La interfaz orientada al usuario final se abordará en el siguiente bloque con navegación lateral, configuración reutilizable y flujo de generación documental.
+
+---
+
 ## Forma de trabajo acordada
 
-Antes de cada nuevo bloque de desarrollo se explicará el alcance, archivos y motivo; se esperará aprobación explícita; después se aplicará un commit lógico y se actualizará este historial.
+Antes de cada nuevo bloque de desarrollo se explicará el alcance, archivos y motivo; se esperará aprobación explícita; después se aplicará un commit lógico y se actualizará este historial. Un bloque no se considera estable únicamente por estar implementado: debe compilar, ejecutar sus pruebas aplicables y registrar cualquier validación externa pendiente.
