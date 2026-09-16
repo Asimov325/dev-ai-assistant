@@ -1,33 +1,32 @@
 package com.dev.aiassistant.web;
 
+import com.dev.aiassistant.config.service.AppConfigurationService;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
 public class AppNavigationController {
+    private final AppConfigurationService configuration;
+
+    public AppNavigationController(AppConfigurationService configuration) { this.configuration = configuration; }
 
     @GetMapping("/")
-    public String home() {
-        return "home";
-    }
+    public String home(Model model) { addStatus(model); return "home"; }
 
     @GetMapping("/documentation/new")
-    public String newDocumentation() {
+    public String newDocumentation(Model model) {
+        addStatus(model);
+        model.addAttribute("repositories", configuration.repositories());
         return "new-documentation";
     }
 
-    @GetMapping("/documentation")
-    public String documentation() {
-        return "documentation";
-    }
+    @GetMapping("/documentation") public String documentation() { return "documentation"; }
+    @GetMapping("/history") public String history() { return "history"; }
 
-    @GetMapping("/history")
-    public String history() {
-        return "history";
-    }
-
-    @GetMapping("/settings")
-    public String settings() {
-        return "settings";
+    private void addStatus(Model model) {
+        model.addAttribute("gitConfigured", !configuration.repositories().isEmpty());
+        model.addAttribute("jiraConfigured", configuration.jiraConfigured());
+        model.addAttribute("confluenceConfigured", configuration.confluenceConfigured());
     }
 }
