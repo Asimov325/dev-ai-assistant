@@ -56,42 +56,57 @@ Development AI Assistant queda preparado para comprobar una conexión real con G
 
 ## Cambio #008 — UX/UI, navegación y separación del MVP
 
-**Estado:** Implementado; pendiente de validación local  
+**Estado:** Validación local parcial satisfactoria  
 **Rama:** `desarrollo`
 
 ### Objetivo
 Transformar la interfaz técnica inicial en la estructura visual del MVP orientada al equipo de desarrollo, separando las herramientas internas de diagnóstico del flujo funcional del producto.
 
 ### Implementado
-- Nueva página de Inicio con acceso principal a generación documental y estado del entorno.
-- Sidebar vertical responsive con Nuevo análisis, Inicio, Documentación, Historial y Configuración.
-- Nueva pantalla de Nueva documentación preparada para el flujo Requerimiento → Código fuente → Documento Técnico.
-- Nueva pantalla de Configuración para centralizar información reutilizable de Git e IA y preparar Jira/Confluence.
-- Pantallas iniciales de Documentación e Historial con estados vacíos coherentes.
-- Estilos reutilizables en `static/css/app.css` para mantener consistencia visual.
-- La antigua pantalla de pruebas queda fuera del menú del MVP y disponible únicamente en `/technical-validation` como herramienta interna temporal.
-- Eliminado el comentario visible “El análisis Git se ha conservado.” de la validación de IA.
+- Inicio, sidebar, Nuevo análisis, Documentación, Historial y Configuración.
+- Configuración Git reutilizable por el nuevo análisis.
+- Herramienta técnica separada en `/technical-validation`.
 
-### Decisiones UX/UI
-- La ruta de repositorio y demás datos repetitivos pertenecen a Configuración, no al flujo diario.
-- La rama del requerimiento sigue siendo una selección propia de cada análisis.
-- Los diffs y pruebas directas de proveedor son herramientas técnicas y no forman parte de la navegación funcional.
-- La validación técnica no es una dependencia del MVP y podrá deshabilitarse o eliminarse posteriormente.
+### Validado
+- `mvn clean test`: BUILD SUCCESS.
+- Configuración Git local comprobada funcionalmente.
 
-### No incluido en este bloque
-- Persistencia real de Configuración.
-- Integración Jira.
-- Generación real del DT desde el nuevo flujo.
-- Persistencia de Documentación/Historial.
-- Publicación Confluence.
+---
+
+## Cambio #008.1 — Conectividad real y fuentes Git LOCAL/REMOTE
+
+**Estado:** Implementado; pendiente de validación local y externa  
+**Rama:** `desarrollo`
+
+### Objetivo
+Completar la infraestructura del POC para comprobar las fuentes reales antes de implementar el análisis Jira + Git y la generación del DT.
+
+### Implementado
+- Se conserva Git LOCAL mediante JGit.
+- Se incorpora Git REMOTE mediante JGit, con clonación temporal, `fetch`, autenticación usuario/token y detección de ramas remotas.
+- La configuración Git permite seleccionar LOCAL o REMOTE y comprobar el acceso antes de guardar.
+- Jira realiza una prueba HTTP real contra el proyecto configurado mediante autenticación Basic usuario/token.
+- Confluence realiza una prueba HTTP real contra el Space configurado, sin crear ni modificar páginas.
+- Se mantienen respuestas controladas para autenticación, permisos, recurso inexistente y errores de conectividad.
+- Gemini conserva su prueba real mediante `AiProvider`.
+- Nuevo análisis identifica repositorios LOCAL/REMOTE y presenta sus ramas.
+- Las credenciales no se incorporan a `application.yml` ni se registran en el historial del repositorio.
 
 ### Pendiente de validación
-- Ejecutar `mvn clean test` localmente.
-- Levantar Spring Boot y revisar navegación, responsive y las rutas principales.
-- Confirmar acceso manual a `/technical-validation` y que no aparece en el menú del MVP.
+- Ejecutar `mvn clean test` después de actualizar la rama local.
+- Probar Git REMOTE contra el repositorio personal del POC.
+- Probar Jira corporativo con VPN/acceso correspondiente.
+- Probar Gemini con credencial válida y contenido no corporativo.
+- Probar Confluence y verificar acceso al Space configurado.
+
+### Fuera de alcance
+- Consulta funcional del Jira desde Nuevo análisis (#009).
+- Generación del Documento Técnico.
+- Publicación de páginas en Confluence.
+- Adaptación de autenticación específica del Git corporativo.
 
 ---
 
 ## Forma de trabajo acordada
 
-Antes de cada nuevo bloque de desarrollo se explicará el alcance, archivos y motivo; se esperará aprobación explícita; después se aplicará un commit lógico y se actualizará este historial. Un bloque no se considera estable únicamente por estar implementado: debe compilar, ejecutar sus pruebas aplicables y registrar cualquier validación externa pendiente.
+Antes de cada nuevo bloque de desarrollo se explicará el alcance, archivos y motivo; se esperará aprobación explícita; se implementará sin commit; después de la revisión se esperará aprobación explícita para el commit. Las ramas temporales, cuando sean necesarias, se nombrarán con el identificador del cambio (por ejemplo `tmp-008-1`) para conservar trazabilidad y evitar nombres ambiguos como `tmp-ignore`.

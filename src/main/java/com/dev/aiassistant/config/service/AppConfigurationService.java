@@ -16,11 +16,11 @@ public class AppConfigurationService {
 
     public synchronized List<ConfiguredGitRepository> repositories() { return List.copyOf(repositories); }
     public synchronized void saveRepository(ConfiguredGitRepository repository) {
-        repositories.removeIf(current -> current.path().equals(repository.path()));
+        repositories.removeIf(current -> current.key().equals(repository.key()));
         repositories.add(repository);
     }
-    public synchronized Optional<ConfiguredGitRepository> repository(String path) {
-        return repositories.stream().filter(repository -> repository.path().equals(path)).findFirst();
+    public synchronized Optional<ConfiguredGitRepository> repository(String key) {
+        return repositories.stream().filter(repository -> repository.key().equals(key)).findFirst();
     }
     public IntegrationConfig jira() { return jira; }
     public void saveJira(IntegrationConfig jira) { this.jira = jira; }
