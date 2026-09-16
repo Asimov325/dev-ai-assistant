@@ -6,107 +6,82 @@ Este archivo registra los cambios funcionales y técnicos aprobados durante el d
 Los cambios anteriores permanecen registrados en el historial Git del proyecto. El Cambio #004 quedó aplicado en el commit `867b69338d82ac0025046c83ee42184156bd9152` y estableció la comparación de ramas y la evidencia técnica Git, utilizando `MEWARI-1455` como caso patrón.
 
 ## Cambio #005 — Pantalla de prueba del análisis Git
-
 **Estado:** Aplicado  
-**Rama:** `desarrollo`  
 **Commit:** `0334afbd9e11afd08ab2b9cfc17bb5621c40b2ca`
 
-### Objetivo
-Incorporar una interfaz web mínima para inspeccionar un repositorio local, seleccionar explícitamente rama base y rama del requerimiento, comparar ambas y visualizar la evidencia técnica antes de integrar Jira e IA.
-
-### Resultado
-Se incorporó la pantalla Thymeleaf de análisis Git y el controlador web. La comparación muestra resumen, archivos afectados, líneas agregadas/eliminadas y diff individual bajo demanda.
-
----
-
 ## Cambio #006 — Proveedor de IA desacoplado y Gemini
-
-**Estado:** Aplicado  
-**Rama:** `desarrollo`
-
-### Objetivo
-Incorporar una abstracción de proveedor de inteligencia artificial que permita utilizar Gemini durante el MVP sin acoplar el resto de Development AI Assistant a un motor específico.
-
-### Resultado
-Development AI Assistant queda preparado para comprobar una conexión real con Gemini y posteriormente sustituirlo por otro proveedor sin modificar la lógica de Git, Jira o generación documental.
-
----
+**Estado:** Aplicado
 
 ## Cambio #007 — Estabilización técnica y de la pantalla de validación
-
-**Estado:** Implementado; validación local en curso  
-**Rama:** `desarrollo`
-
-### Implementado
-- Corregido el import de JGit `FileHeader`.
-- Cerrado correctamente `ObjectReader`.
-- Contenido el diff dentro de su propia área de scroll.
-- Conservado el estado Git durante la prueba temporal de IA.
-- Manejo controlado de errores del proveedor IA.
+**Estado:** Aplicado y validado localmente
 
 ### Validado
-- `mvn clean test` obtuvo `BUILD SUCCESS` después de la corrección JGit.
+- `mvn clean test`: BUILD SUCCESS.
 - Aplicación Spring Boot levantada localmente.
 - Inspección y comparación Git verificadas.
 
-### Pendiente externo
-- Validación real de Gemini con API key y contenido no corporativo.
-
----
-
 ## Cambio #008 — UX/UI, navegación y separación del MVP
-
-**Estado:** Validación local parcial satisfactoria  
-**Rama:** `desarrollo`
-
-### Objetivo
-Transformar la interfaz técnica inicial en la estructura visual del MVP orientada al equipo de desarrollo, separando las herramientas internas de diagnóstico del flujo funcional del producto.
+**Estado:** Aplicado
 
 ### Implementado
 - Inicio, sidebar, Nuevo análisis, Documentación, Historial y Configuración.
 - Configuración Git reutilizable por el nuevo análisis.
-- Herramienta técnica separada en `/technical-validation`.
+- Herramienta técnica separada del flujo funcional.
+
+## Cambio #008.1 — Conectividad real y fuentes Git LOCAL/REMOTE
+**Estado:** Aplicado; validación funcional identificó ajustes para #008.2
 
 ### Validado
-- `mvn clean test`: BUILD SUCCESS.
-- Configuración Git local comprobada funcionalmente.
+- `mvn clean test`: BUILD SUCCESS reportado por validación local.
+- Git LOCAL funcional.
+- Git REMOTE logró autenticarse contra repositorio privado personal.
+- Jira logró realizar la prueba de conectividad.
+
+### Observaciones trasladadas a #008.2
+- La prueba Git REMOTE resultaba lenta porque clonaba el repositorio completo.
+- Las configuraciones se mantenían solo durante la ejecución y podían perder estado visual.
+- Inicio no reflejaba correctamente todas las integraciones configuradas.
+- Gemini dependía de variable de entorno.
+- Faltaba un flujo uniforme de probar → guardar → mostrar configuración.
 
 ---
 
-## Cambio #008.1 — Conectividad real y fuentes Git LOCAL/REMOTE
-
-**Estado:** Implementado; pendiente de validación local y externa  
-**Rama:** `desarrollo`
+## Cambio #008.2 — Estabilización de configuración e integraciones
+**Estado:** Implementado en `tmp-008-2`; pendiente de compilación y validación funcional local
 
 ### Objetivo
-Completar la infraestructura del POC para comprobar las fuentes reales antes de implementar el análisis Jira + Git y la generación del DT.
+Dejar Configuración como base estable del MVP antes de incorporar el análisis Jira + Git, evitando pérdida de configuración, exposición de credenciales y operaciones Git REMOTE innecesariamente pesadas.
 
 ### Implementado
-- Se conserva Git LOCAL mediante JGit.
-- Se incorpora Git REMOTE mediante JGit, con clonación temporal, `fetch`, autenticación usuario/token y detección de ramas remotas.
-- La configuración Git permite seleccionar LOCAL o REMOTE y comprobar el acceso antes de guardar.
-- Jira realiza una prueba HTTP real contra el proyecto configurado mediante autenticación Basic usuario/token.
-- Confluence realiza una prueba HTTP real contra el Space configurado, sin crear ni modificar páginas.
-- Se mantienen respuestas controladas para autenticación, permisos, recurso inexistente y errores de conectividad.
-- Gemini conserva su prueba real mediante `AiProvider`.
-- Nuevo análisis identifica repositorios LOCAL/REMOTE y presenta sus ramas.
-- Las credenciales no se incorporan a `application.yml` ni se registran en el historial del repositorio.
+- Git REMOTE valida URL/autenticación/ramas con `ls-remote`, sin clonar el repositorio durante `Probar conexión`.
+- Configuración persistente fuera del repositorio en `~/.development-ai-assistant`.
+- Credenciales locales protegidas con AES/GCM y clave local separada.
+- Git, Jira, Gemini y Confluence mantienen configuración independiente.
+- Flujo uniforme: probar conexión → habilitar Guardar → configuración activa.
+- La operación Guardar no repite la conexión externa ya validada.
+- Las configuraciones activas se muestran mediante cards y dejan de exponer formularios editables.
+- Para cambiar una configuración se elimina/desactiva la actual y se vuelve a validar la nueva antes de guardarla.
+- Los tokens nunca se devuelven como campos ocultos al navegador.
+- Gemini puede recibir la API key desde Configuración y conserva como fallback la configuración externa existente.
+- Confluence puede reutilizar URL, usuario y token de Jira cuando ambos pertenecen al mismo sitio Atlassian, manteniendo Space independiente.
+- Inicio refleja el estado real de Git, Jira, Gemini y Confluence.
 
-### Pendiente de validación
-- Ejecutar `mvn clean test` después de actualizar la rama local.
-- Probar Git REMOTE contra el repositorio personal del POC.
-- Probar Jira corporativo con VPN/acceso correspondiente.
-- Probar Gemini con credencial válida y contenido no corporativo.
-- Probar Confluence y verificar acceso al Space configurado.
+### Pendiente de validación antes de aprobar commit
+- `mvn clean test`.
+- Reiniciar la aplicación y comprobar que las configuraciones persisten.
+- Git LOCAL: probar, guardar y visualizar card.
+- Git REMOTE: confirmar que `Probar conexión` es sensiblemente más rápido y guardar no vuelve a consultar la red.
+- Jira: probar, guardar, reiniciar y verificar estado/card.
+- Gemini: ingresar API key desde UI, probar, guardar y reiniciar.
+- Confluence: validar tanto credencial Atlassian compartida como configuración independiente según disponibilidad.
+- Confirmar que Inicio refleja inmediatamente los cuatro estados.
 
 ### Fuera de alcance
 - Consulta funcional del Jira desde Nuevo análisis (#009).
-- Generación del Documento Técnico.
-- Publicación de páginas en Confluence.
-- Adaptación de autenticación específica del Git corporativo.
+- Generación del Documento Técnico (#010).
+- Publicación real en Confluence.
 
 ---
 
 ## Forma de trabajo acordada
-
-Antes de cada nuevo bloque de desarrollo se explicará el alcance, archivos y motivo; se esperará aprobación explícita; se implementará sin commit; después de la revisión se esperará aprobación explícita para el commit. Las ramas temporales, cuando sean necesarias, se nombrarán con el identificador del cambio (por ejemplo `tmp-008-1`) para conservar trazabilidad y evitar nombres ambiguos como `tmp-ignore`.
+Antes de cada nuevo bloque de desarrollo se explicará el alcance, archivos y motivo; se esperará aprobación explícita; se implementará en una rama temporal identificada con el cambio; después de la validación se esperará aprobación explícita para integrar el cambio definitivo en `desarrollo`.
