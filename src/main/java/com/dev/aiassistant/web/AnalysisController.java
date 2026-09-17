@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 @Controller
 public class AnalysisController {
     private static final Logger log = LoggerFactory.getLogger(AnalysisController.class);
-    private static final String ANALYSIS_SESSION_KEY = "documentationAnalysis";
+    private static final String ANALYSIS_SESSION_KEY = "documentationAnalysis";\n    private static final String GENERATED_TYPES_SESSION_KEY = "generatedDocumentTypes";
     private final AppConfigurationService configuration;
     private final JiraIssueService jira;
     private final GitSourceService localGit;
@@ -64,7 +64,9 @@ public class AnalysisController {
                     jiraKey, data.context().changedFiles().size(), data.context().alignedWithBase(),
                     data.context().baseCommitsNotInRequirement(), System.currentTimeMillis() - start);
         } catch (RuntimeException ex) {
-            session.removeAttribute(ANALYSIS_SESSION_KEY); model.addAttribute("analysisError", ex.getMessage());
+            session.removeAttribute(ANALYSIS_SESSION_KEY);
+            session.removeAttribute(GENERATED_TYPES_SESSION_KEY);
+            model.addAttribute("analysisError", ex.getMessage());
             log.error("Análisis documentación: error. jira={} tiempoMs={} mensaje={}", jiraKey, System.currentTimeMillis() - start, ex.getMessage());
         }
         return "new-documentation";
@@ -87,7 +89,12 @@ public class AnalysisController {
             model.addAttribute("generatedTitle", normalizeDocumentType(documentType) + " " + jiraKey);
             model.addAttribute("aiProviderUsed", documentation.providerId());
             model.addAttribute("aiModelUsed", documentation.modelId());
-        } catch (RuntimeException ex) { model.addAttribute("generationError", ex.getMessage()); }
+            markGenerated(session, documentType);
+            addGenerationState(model, session, documentType);
+        } catch (RuntimeException ex) {
+            addGenerationState(model, session, documentType);
+            model.addAttribute("generationError", ex.getMessage());
+        }
         return "new-documentation";
     }
 
@@ -118,6 +125,26 @@ public class AnalysisController {
     private String normalizeDocumentType(String documentType) {
         if (documentType == null || documentType.isBlank()) return "DT";
         return documentType.trim().equalsIgnoreCase("DPC") ? "DPC" : "DT";
+    }
+
+    @SuppressWarnings("unchecked")
+    private Set<String> generatedTypes(HttpSession session) {
+        Object value = session.getAttribute(GENERATED_TYPES_SESSION_KEY);
+        if (value instanceof Set<?> stored) return (Set<String>) stored;
+        Set<String> created = new HashSet<>();
+        session.setAttribute(GENERATED_TYPES_SESSION_KEY, created);
+        return created;
+    }
+
+    private void markGenerated(HttpSession session, String documentType) {
+        generatedTypes(session).add(normalizeDocumentType(documentType));
+    }
+
+    private void addGenerationState(Model model, HttpSession session, String documentType) {
+        Set<String> generated = generatedTypes(session);
+        model.addAttribute("generatedDt", generated.contains("DT"));
+        model.addAttribute("generatedDpc", generated.contains("DPC"));
+        model.addAttribute("selectedDocumentAlreadyGenerated", generated.contains(normalizeDocumentType(documentType)));
     }
 
     private void addCommon(Model model) {
