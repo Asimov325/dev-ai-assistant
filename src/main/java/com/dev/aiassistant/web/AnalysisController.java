@@ -80,7 +80,7 @@ public class AnalysisController {
             if (!configuration.aiConfigured()) throw new IllegalStateException("Configura y valida el proveedor de IA antes de generar documentos.");
             AnalysisData data = resolveAnalysis(session, jiraKey, repositoryKey, baseBranch, requirementBranch); addAnalysis(model, data);
             JiraIssueService.JiraIssueContext issue = jira.getContext(configuration.jira(), jiraKey);
-            String generated = documentation.generate(documentType, issue, data.context());
+            String generated = documentation.generate(documentType, issue, data.context(), data.repository().name());
             model.addAttribute("generatedDocument", generated);
             model.addAttribute("generatedDocumentHtml", markdown.render(generated));
             model.addAttribute("documentGenerated", true);
