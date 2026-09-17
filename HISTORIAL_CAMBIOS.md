@@ -103,28 +103,39 @@ Los cambios anteriores permanecen registrados en el historial Git del proyecto. 
 ---
 
 ## Cambio #010.3 — Evidencia Git de la HU, alineamiento y vista documental
-**Estado:** Implementado en `tmp-010-3`; pendiente de promoción a `desarrollo` y validación local/funcional.
+**Estado:** Promovido a `desarrollo`; validación funcional de Git correcta para MEWARI-1679.
+
+### Implementado y validado
+- Evidencia calculada desde `merge-base` hasta la rama del requerimiento.
+- `Analizar` calcula por separado commits de la rama origen no incorporados en la HU.
+- MEWARI-1679 reportó 18 archivos y 6 commits propios, coincidiendo con el comparador de referencia.
+- Se detectaron 43 commits actuales de `produccion` no incorporados en MEWARI-1679 y se mostró la advertencia sin contaminar la evidencia documental.
+- Logs incluyen SHA origen, SHA requerimiento, merge-base, archivos, commits propios y alineamiento.
+- Markdown permanece como formato canónico y se renderiza como documento tipo Word/Confluence.
+
+---
+
+## Cambio #010.3.1 — Selección dinámica y resiliencia Gemini
+**Estado:** Implementado en `tmp-010-3-1`; pendiente de promoción y validación local.
 
 ### Motivo
-La comparación anterior utilizaba directamente el árbol del tip de la rama origen contra el tip de la rama del requerimiento. En MEWARI-1679 la aplicación reportaba 64 archivos mientras el comparador de referencia basado en tres puntos mostraba 18. Además, la vista preliminar se mostraba como un textarea y no como documento estructurado.
+La generación confirmó que `gemini-2.5-flash-lite` devuelve HTTP 404 en el entorno actual y que `gemini-3.1-flash-lite` puede devolver HTTP 503. La selección no debe depender de una versión fija ni terminar la generación ante el primer modelo temporalmente no disponible.
 
 ### Implementado
-- La evidencia propia del requerimiento se calcula desde el `merge-base` hasta la rama del requerimiento, equivalente conceptualmente a una comparación de tres puntos.
-- El botón `Analizar` calcula por separado cuántos commits actuales de la rama origen todavía no están incorporados en la rama del requerimiento.
-- El desalineamiento no contamina la evidencia documental y no bloquea la generación; se muestra como advertencia antes de generar.
-- El análisis registra SHA origen, SHA requerimiento, merge-base, archivos de la HU, commits propios, commits de origen no incorporados y estado de alineamiento.
-- `Ver evidencia técnica` muestra también los SHA utilizados para facilitar auditoría de la comparación.
-- Markdown permanece como formato canónico del DT/DPC.
-- Se agregó renderizado server-side de Markdown con soporte para tablas GFM y escape de HTML/URLs inseguras.
-- La vista preliminar se presenta como una hoja/documento amplio tipo Word/Confluence.
-- `Editar documento` cambia a un editor Markdown amplio; la edición sigue siendo preliminar y todavía no se persiste ni publica en Confluence.
+- La generación ya no inicia con `gemini-2.5-flash-lite` ni con ningún modelo configurado de forma fija; consulta el catálogo real de la API en cada generación.
+- Solo considera candidatos Gemini orientados a generación de texto que anuncien `generateContent`.
+- Ordena dinámicamente los candidatos sin hardcodear una versión concreta.
+- HTTP 404 descarta inmediatamente el modelo para la solicitud y para la sesión actual.
+- HTTP 503 o 429 reintenta una vez el mismo modelo tras una espera corta; si persiste, descarta ese modelo y continúa automáticamente con otro candidato.
+- Los modelos descartados durante la sesión no vuelven a ser el primer candidato en la siguiente generación, evitando repetir fallos ya conocidos.
+- Una nueva API key limpia el estado de modelos descartados.
+- Logs registran modelo, intento, código HTTP, descarte y modelo alternativo sin exponer API key ni prompt completo.
 
 ### Validación requerida
 - Promover a `desarrollo` solo después de aprobación.
 - Ejecutar `mvn clean test`.
-- Para MEWARI-1679 ejecutar primero solo `Analizar` y contrastar archivos/commits con el comparador de referencia (esperado observado: 18 archivos y 6 commits).
-- Verificar la advertencia de alineamiento/desalineamiento.
-- Solo cuando la evidencia Git sea correcta, generar nuevamente el DT y validar la vista estructurada.
+- Generar nuevamente el DT de MEWARI-1679 sin repetir el análisis Git.
+- Confirmar en logs qué candidato dinámico fue seleccionado y, si devuelve 503/429/404, que el sistema continúe con otro modelo hasta generar o agotar candidatos.
 
 ---
 
