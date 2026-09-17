@@ -116,26 +116,34 @@ Los cambios anteriores permanecen registrados en el historial Git del proyecto. 
 ---
 
 ## Cambio #010.3.1 — Selección dinámica y resiliencia Gemini
-**Estado:** Implementado en `tmp-010-3-1`; pendiente de promoción y validación local.
-
-### Motivo
-La generación confirmó que `gemini-2.5-flash-lite` devuelve HTTP 404 en el entorno actual y que `gemini-3.1-flash-lite` puede devolver HTTP 503. La selección no debe depender de una versión fija ni terminar la generación ante el primer modelo temporalmente no disponible.
+**Estado:** Promovido a `desarrollo`; generación funcional confirmada con `gemini-flash-lite-latest`.
 
 ### Implementado
-- La generación ya no inicia con `gemini-2.5-flash-lite` ni con ningún modelo configurado de forma fija; consulta el catálogo real de la API en cada generación.
-- Solo considera candidatos Gemini orientados a generación de texto que anuncien `generateContent`.
-- Ordena dinámicamente los candidatos sin hardcodear una versión concreta.
-- HTTP 404 descarta inmediatamente el modelo para la solicitud y para la sesión actual.
-- HTTP 503 o 429 reintenta una vez el mismo modelo tras una espera corta; si persiste, descarta ese modelo y continúa automáticamente con otro candidato.
-- Los modelos descartados durante la sesión no vuelven a ser el primer candidato en la siguiente generación, evitando repetir fallos ya conocidos.
-- Una nueva API key limpia el estado de modelos descartados.
-- Logs registran modelo, intento, código HTTP, descarte y modelo alternativo sin exponer API key ni prompt completo.
+- Selección dinámica desde el catálogo real de modelos Gemini con `generateContent`.
+- HTTP 404 descarta el modelo; HTTP 503/429 reintenta y luego continúa con otro candidato.
+- Los modelos descartados durante la sesión no vuelven a ser candidatos inmediatos.
+- Logs registran modelo, intento, código HTTP y fallback sin exponer credenciales.
+
+---
+
+## Cambio #010.4 — Estructura corporativa DT/DPC y edición documental
+**Estado:** Implementado en `tmp-010-4`; pendiente de promoción y validación local.
+
+### Implementado
+- Gemini debe devolver Markdown GFM estructurado, con títulos, subtítulos, tablas, listas, negritas y separación explícita entre secciones.
+- DT alineado al patrón corporativo: Información general en tabla; Descripción funcional; Modelo conceptual; Descripción técnica con Nivel BD y Nivel Desarrollo; Objetos Relacionados con tablas separadas de aplicación y BD.
+- DPC alineado al patrón corporativo: Información General; Objetivo; Requisitos; Scripts BD separados en CREACIÓN/REVERSIÓN y tablas; Scripts MQ; reglas de acceso; opciones/perfiles; Procedimiento del Pase en tabla; Plan de Ejecución.
+- `No Aplica` y `Requiere validación` se presentan separados del título correspondiente.
+- Se prohíbe inventar ZIP, LDAP, comandos, pipelines, despliegues o datos del documento de referencia que no estén demostrados por Jira/Git.
+- El prompt recibe el nombre lógico del repositorio configurado y no el directorio temporal interno `dev-ai-analysis-*`.
+- El editor Markdown ocupa el ancho disponible y aproximadamente 72% de la altura de la ventana, con redimensionamiento vertical.
+- La vista HTML conserva Markdown como fuente canónica y mantiene renderizado seguro mediante CommonMark/GFM Tables.
 
 ### Validación requerida
-- Promover a `desarrollo` solo después de aprobación.
-- Ejecutar `mvn clean test`.
-- Generar nuevamente el DT de MEWARI-1679 sin repetir el análisis Git.
-- Confirmar en logs qué candidato dinámico fue seleccionado y, si devuelve 503/429/404, que el sistema continúe con otro modelo hasta generar o agotar candidatos.
+- Ejecutar `mvn clean test` tras promover a `desarrollo`.
+- Generar DT y DPC de prueba y contrastar visualmente títulos, tablas y subsecciones con las referencias corporativas de Confluence.
+- Verificar que `Editar documento` abra un área amplia y legible.
+- Confirmar que no aparezcan nombres temporales `dev-ai-analysis-*` en el documento generado.
 
 ---
 
