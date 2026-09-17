@@ -53,35 +53,63 @@ Los cambios anteriores permanecen registrados en el historial Git del proyecto. 
 ---
 
 ## Cambio #009 — Nuevo análisis real Jira + Git
-**Estado:** Implementado; pendiente de compilación y validación funcional local.
+**Estado:** Validado localmente.
 
-### Objetivo
-Integrar las fuentes ya configuradas dentro del flujo principal de Nuevo análisis sin convertir la pantalla documental en una herramienta de revisión Git.
+### Implementado y validado
+- Búsqueda libre de requerimientos Jira, sin prefijo de proyecto hardcodeado.
+- Autocompletado Jira con máximo 5 coincidencias y selección explícita.
+- Búsqueda predictiva de Rama origen y Rama del requerimiento.
+- Comparación real LOCAL/REMOTE y evidencia técnica compacta.
+- Detalle colapsado de archivos con tipo, ruta y líneas agregadas/eliminadas.
+- `mvn clean test`: BUILD SUCCESS reportado por validación local de #009.
+
+## Cambio #009.1 — Rendimiento y progreso del análisis
+**Estado:** Implementado y probado funcionalmente.
 
 ### Implementado
-- Búsqueda libre de requerimientos Jira, sin prefijo de proyecto hardcodeado.
-- Autocompletado Jira con máximo 5 coincidencias y selección explícita del requerimiento.
-- Rama origen y Rama del requerimiento reemplazadas por búsqueda predictiva con máximo 5 coincidencias.
-- La rama del requerimiento usa el Jira seleccionado como texto inicial de búsqueda, sin seleccionarla automáticamente.
-- El botón Analizar ejecuta la comparación real entre Rama origen y Rama del requerimiento.
-- Comparación disponible tanto para repositorios LOCAL como REMOTE configurados.
-- Resultado principal compacto: requerimiento, repositorio, ramas y cantidades de archivos modificados/nuevos/eliminados/renombrados.
-- Evidencia técnica secundaria y colapsada para evitar saturar la vista cuando existen muchos cambios.
-- El detalle de archivos muestra tipo, ruta y líneas agregadas/eliminadas.
-- Generar Documento Técnico permanece deshabilitado hasta #010.
+- REMOTE obtiene únicamente las dos ramas necesarias para el análisis en lugar de clonar todas las ramas.
+- Indicador visual de progreso mientras se realiza la comparación Git.
+- Prevención de envíos duplicados durante el análisis.
+
+### Validación funcional
+- Se reportó una mejora perceptible en el tiempo del análisis.
+
+---
+
+## Cambio #010 — Generación IA y vista preliminar DT / DPC
+**Estado:** Implementado en rama temporal `tmp-010`; pendiente de validación local antes de promover a `desarrollo`.
+
+### Objetivo
+Convertir la evidencia reunida por #009 en un documento preliminar revisable, manteniendo a la persona como responsable de validar el contenido antes de cualquier publicación.
+
+### Implementado
+- Selección independiente de Documento Técnico (DT) o Documento de Propuesta de Cambio (DPC).
+- Recuperación del contexto del Jira seleccionado para la generación: clave, título, estado, tipo y descripción.
+- Generación real mediante la abstracción `AiProvider`, actualmente Gemini.
+- Contexto de IA compuesto por Jira + inventario de cambios Git + selección limitada de diferencias relevantes.
+- Límites de cantidad/tamaño de diff para evitar enviar indiscriminadamente todo el cambio a la IA.
+- Reglas explícitas contra invención de procesos, objetos, scripts, impactos y datos no sustentados.
+- Uso de `No Aplica` y `Requiere validación` cuando la evidencia no permite completar una sección.
+- Estructura DT alineada con el DT corporativo de referencia.
+- Estructura DPC separada y alineada con el DPC corporativo de referencia: Información General, Objetivo del Documento, Requisitos, Scripts de Base de Datos (Creación/Reversión), Scripts MQ, reglas de acceso, opciones/perfiles, Procedimiento del Pase y Proceso del Plan de Ejecución.
+- Indicador de progreso durante la generación IA.
+- Vista preliminar editable dentro de Development AI Assistant.
+- El documento permanece como `Pendiente de revisión`; #010 no publica ni modifica Confluence.
+- Ningún Jira o rama de prueba está hardcodeado en la implementación.
 
 ### Pendiente de validación
-- `mvn clean test`.
-- Búsqueda Jira por código y por texto.
-- Confirmar máximo 5 resultados en Jira y ramas.
-- Probar repositorio con gran cantidad de ramas.
-- Ejecutar análisis LOCAL y/o REMOTE entre dos ramas reales.
-- Confirmar que el resumen permanece compacto con muchos archivos modificados.
-- Revisar evidencia técnica colapsada.
+- Ejecutar `mvn clean test` localmente.
+- Levantar la aplicación y verificar que DT y DPC aparezcan en el selector.
+- Ejecutar un análisis real con un Jira y ramas seleccionadas por el usuario.
+- Generar DT y revisar que Gemini use contexto Jira + Git sin inventar información.
+- Generar DPC y revisar que use su estructura propia, distinta al DT.
+- Confirmar que el contenido preliminar pueda editarse en pantalla y que no exista publicación a Confluence.
 
 ### Fuera de alcance
-- Generación, visualización y edición del DT (#010).
-- Publicación del documento en Confluence.
+- Guardado/publicación en Confluence.
+- Configuración de página padre de DT y DPC en Confluence.
+- Estado `Ready for review` en Confluence.
+- Aprobación/publicación definitiva del documento.
 
 ---
 
