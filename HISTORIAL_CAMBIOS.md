@@ -71,13 +71,10 @@ Los cambios anteriores permanecen registrados en el historial Git del proyecto. 
 - Indicador visual de progreso mientras se realiza la comparación Git.
 - Prevención de envíos duplicados durante el análisis.
 
-### Validación funcional
-- Se reportó una mejora perceptible en el tiempo del análisis.
-
 ---
 
 ## Cambio #010 — Generación IA y vista preliminar DT / DPC
-**Estado:** Promovido a `desarrollo`; compilación local validada con BUILD SUCCESS. La prueba funcional detectó incompatibilidad del modelo Gemini al ejecutar `generateContent`, tratada en #010.1 y #010.2.
+**Estado:** Promovido a `desarrollo`; compilación local validada con BUILD SUCCESS. Ajustes posteriores en #010.1, #010.2 y #010.3.
 
 ### Implementado
 - Selección independiente de DT o DPC.
@@ -85,43 +82,49 @@ Los cambios anteriores permanecen registrados en el historial Git del proyecto. 
 - Generación mediante `AiProvider`, actualmente Gemini.
 - Estructuras corporativas diferenciadas para DT y DPC.
 - Reglas anti-invención y estados `No Aplica` / `Requiere validación`.
-- Vista preliminar editable y sin publicación a Confluence.
-
----
 
 ## Cambio #010.1 — Estabilización Gemini y trazabilidad de generación
-**Estado:** Promovido a `desarrollo`; compilación local reportada con BUILD SUCCESS. La prueba funcional mostró que `models.list` anunciaba `gemini-2.5-flash-lite` como compatible, pero `generateContent` devolvía HTTP 404.
+**Estado:** Promovido a `desarrollo`; compilación local reportada con BUILD SUCCESS.
 
 ### Implementado
-- Descubrimiento dinámico del catálogo de modelos que Gemini declara compatibles con `generateContent`.
-- Logging mediante SLF4J/Spring Boot para seguir análisis y generación sin exponer credenciales ni contenido completo del prompt/diff.
-- La vista preliminar muestra proveedor IA y modelo utilizado.
-- Detección explícita del HTTP 404 durante generación.
+- Descubrimiento dinámico de modelos Gemini compatibles con `generateContent`.
+- Logging SLF4J/Spring Boot sin exponer credenciales ni prompt/diff completo.
+- Vista preliminar muestra proveedor y modelo IA.
+
+## Cambio #010.2 — Fallback real entre modelos Gemini
+**Estado:** Promovido a `desarrollo`; prueba funcional confirmó generación usando modelo alternativo tras incompatibilidad del modelo inicial.
+
+### Implementado
+- Autenticación REST mediante `x-goog-api-key`.
+- Descarte temporal de modelos que devuelven HTTP 404.
+- Fallback entre modelos compatibles hasta generar o agotar candidatos.
+- Logs de modelo descartado, alternativo y resultado.
 
 ---
 
-## Cambio #010.2 — Fallback real entre modelos Gemini
-**Estado:** Implementado en rama temporal `tmp-010-2`; pendiente de promoción a `desarrollo` y validación local.
+## Cambio #010.3 — Evidencia Git de la HU, alineamiento y vista documental
+**Estado:** Implementado en `tmp-010-3`; pendiente de promoción a `desarrollo` y validación local/funcional.
 
 ### Motivo
-En la prueba funcional, Gemini listó `gemini-2.5-flash-lite` con soporte para `generateContent`, pero la llamada real devolvió HTTP 404. El reintento de #010.1 volvía a elegir el mismo modelo y no podía recuperarse.
+La comparación anterior utilizaba directamente el árbol del tip de la rama origen contra el tip de la rama del requerimiento. En MEWARI-1679 la aplicación reportaba 64 archivos mientras el comparador de referencia basado en tres puntos mostraba 18. Además, la vista preliminar se mostraba como un textarea y no como documento estructurado.
 
 ### Implementado
-- La autenticación REST de Gemini utiliza el header `x-goog-api-key` tanto para consultar modelos como para generar contenido.
-- La generación obtiene el catálogo compatible y mantiene una lista de modelos descartados únicamente durante la solicitud actual.
-- Si un modelo devuelve HTTP 404, se descarta para esa generación y se selecciona automáticamente otro candidato compatible.
-- El fallback puede recorrer candidatos alternativos hasta obtener una generación válida o agotar los modelos anunciados por Gemini.
-- Se mantiene el modelo preferido como primer intento cuando está disponible, sin permitir que bloquee los fallbacks posteriores.
-- La selección dinámica favorece generaciones actuales y modelos Flash/Lite, evitando fijar en código un único identificador concreto de Gemini.
-- Los logs muestran cada modelo descartado, el modelo alternativo elegido y el resultado de cada intento, sin registrar API keys ni el prompt completo.
+- La evidencia propia del requerimiento se calcula desde el `merge-base` hasta la rama del requerimiento, equivalente conceptualmente a una comparación de tres puntos.
+- El botón `Analizar` calcula por separado cuántos commits actuales de la rama origen todavía no están incorporados en la rama del requerimiento.
+- El desalineamiento no contamina la evidencia documental y no bloquea la generación; se muestra como advertencia antes de generar.
+- El análisis registra SHA origen, SHA requerimiento, merge-base, archivos de la HU, commits propios, commits de origen no incorporados y estado de alineamiento.
+- `Ver evidencia técnica` muestra también los SHA utilizados para facilitar auditoría de la comparación.
+- Markdown permanece como formato canónico del DT/DPC.
+- Se agregó renderizado server-side de Markdown con soporte para tablas GFM y escape de HTML/URLs inseguras.
+- La vista preliminar se presenta como una hoja/documento amplio tipo Word/Confluence.
+- `Editar documento` cambia a un editor Markdown amplio; la edición sigue siendo preliminar y todavía no se persiste ni publica en Confluence.
 
-### Pendiente de validación
-- Promover #010.2 a `desarrollo` previa aprobación.
+### Validación requerida
+- Promover a `desarrollo` solo después de aprobación.
 - Ejecutar `mvn clean test`.
-- Repetir la generación DT con el caso de prueba seleccionado por el usuario.
-- Confirmar en logs que un HTTP 404 descarta el modelo y utiliza un modelo alternativo.
-- Confirmar que la vista preliminar muestre el modelo que finalmente generó el documento.
-- Posteriormente validar generación DPC.
+- Para MEWARI-1679 ejecutar primero solo `Analizar` y contrastar archivos/commits con el comparador de referencia (esperado observado: 18 archivos y 6 commits).
+- Verificar la advertencia de alineamiento/desalineamiento.
+- Solo cuando la evidencia Git sea correcta, generar nuevamente el DT y validar la vista estructurada.
 
 ---
 
