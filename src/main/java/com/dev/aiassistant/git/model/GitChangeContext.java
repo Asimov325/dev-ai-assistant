@@ -7,6 +7,12 @@ public record GitChangeContext(
         String sourceName,
         String baseBranch,
         String requirementBranch,
+        String baseSha,
+        String requirementSha,
+        String mergeBaseSha,
+        int requirementCommitCount,
+        int baseCommitsNotInRequirement,
+        boolean alignedWithBase,
         List<GitChangedFile> changedFiles
 ) {
 }
