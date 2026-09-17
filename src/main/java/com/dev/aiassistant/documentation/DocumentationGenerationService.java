@@ -16,8 +16,10 @@ public class DocumentationGenerationService {
     private static final Logger log = LoggerFactory.getLogger(DocumentationGenerationService.class);
     private static final int MAX_DIFF_FILES = 18;
     private static final int MAX_DIFF_CHARS_PER_FILE = 3500;
-    private static final int MAX_TOTAL_DIFF_CHARS = 30000;
+    private static final int MAX_SQL_DIFF_CHARS_PER_FILE = 7000;
+    private static final int MAX_TOTAL_DIFF_CHARS = 40000;
     private static final String VALIDATION_PLACEHOLDER = "[Requiere validación]";
+    private static final String UPLOAD_PLACEHOLDER = "[Subir adjunto]";
     private final AiService ai;
 
     public DocumentationGenerationService(AiService ai) { this.ai = ai; }
@@ -69,6 +71,7 @@ public class DocumentationGenerationService {
                 .append("- Cuando falte evidencia necesaria, escribe exactamente ").append(VALIDATION_PLACEHOLDER).append(" en el campo o sección correspondiente. Los corchetes indican que el usuario debe completar o confirmar ese dato.\n\n")
                 .append("REGLAS DE EVIDENCIA:\n")
                 .append("- No inventes procesos, tablas, clases, scripts, reglas, impactos, responsables, comandos, pipelines ni comportamientos.\n")
+                .append("- Antes de usar ").append(VALIDATION_PLACEHOLDER).append(", revisa conjuntamente título/descripción Jira, inventario de archivos y diffs. Si el dato se deduce de forma directa y no ambigua de esa evidencia, complétalo.\n")
                 .append("- Distingue lo confirmado por Git de lo respaldado por Jira.\n")
                 .append("- Un objeto solo puede llamarse Modificado si existe evidencia directa en Git.\n")
                 .append("- Objetos relacionados o utilizados pueden mencionarse solo si la relación está sustentada por la evidencia.\n")
@@ -102,15 +105,23 @@ public class DocumentationGenerationService {
                 .append("## Información general\n\n")
                 .append("| Campo | Valor |\n|---|---|\n")
                 .append("| **HU Relacionados** | [clave Jira] |\n")
-                .append("| **Proceso** | [evidencia o ").append(VALIDATION_PLACEHOLDER).append("] |\n")
-                .append("| **Sistema / opción** | [evidencia o ").append(VALIDATION_PLACEHOLDER).append("] |\n")
-                .append("| **Impacto (Alto, Medio, Bajo)** | [evidencia o ").append(VALIDATION_PLACEHOLDER).append("] |\n")
-                .append("| **Autor** | [evidencia o ").append(VALIDATION_PLACEHOLDER).append("] |\n\n")
+                .append("| **Proceso** | [proceso identificado por Jira/Git o ").append(VALIDATION_PLACEHOLDER).append("] |\n")
+                .append("| **Sistema / opción** | [sistema/opción identificado por Jira/Git o ").append(VALIDATION_PLACEHOLDER).append("] |\n")
+                .append("| **Impacto (Alto, Medio, Bajo)** | [solo evidencia explícita o ").append(VALIDATION_PLACEHOLDER).append("] |\n")
+                .append("| **Autor** | [solo evidencia explícita o ").append(VALIDATION_PLACEHOLDER).append("] |\n\n")
+                .append("Para Proceso y Sistema/opción, correlaciona primero la descripción funcional de Jira con los componentes/rutas modificados. Si la evidencia identifica de forma directa y no ambigua el proceso o sistema, complétalo; no exijas que exista literalmente una etiqueta con ese nombre. Impacto y Autor requieren evidencia explícita.\n\n")
                 .append("## Descripción funcional\n\n[Párrafos funcionales sustentados principalmente por Jira.]\n\n")
                 .append("## Modelo conceptual funcional / técnica de la solución propuesta\n\n[Párrafos que correlacionen intención y solución demostrable.]\n\n")
                 .append("## Descripción técnica\n\n### Nivel BD\n\n")
-                .append("| TABLA | PK | DESCRIPCION |\n|---|---|---|\n| [tabla] | [PK o ").append(VALIDATION_PLACEHOLDER).append("] | [descripción sustentada] |\n\n")
-                .append("Si no existe evidencia BD, sustituye la tabla de ejemplo por *No Aplica*.\n\n")
+                .append("| TABLA | PK | DESCRIPCION |\n|---|---|---|\n| [tabla/objeto] | [PK/identificador demostrado o ").append(VALIDATION_PLACEHOLDER).append("] | [descripción/propósito sustentado o ").append(VALIDATION_PLACEHOLDER).append("] |\n\n")
+                .append("REGLAS OBLIGATORIAS NIVEL BD:\n")
+                .append("- Los scripts SQL de instalación/configuración son evidencia prioritaria para esta sección. Analiza INSERT, UPDATE, DELETE, MERGE, GRANT y demás operaciones relevantes visibles en los scripts.\n")
+                .append("- No resumas el Nivel BD a una sola tabla si los scripts evidencian varias tablas, objetos o registros de configuración.\n")
+                .append("- No limites la tabla a una fila por nombre de tabla: si una misma tabla recibe varios registros/configuraciones con identificadores o finalidades distintas, genera una fila por cada registro/configuración relevante demostrada.\n")
+                .append("- Extrae PK o identificador únicamente cuando esté visible/demostrable en el SQL. No inventes una PK a partir de secuencias, orden de columnas o conocimiento general.\n")
+                .append("- La DESCRIPCION debe reflejar el propósito del registro cuando el SQL, sus valores/comentarios o Jira lo sustenten. Si no puede determinarse, usa ").append(VALIDATION_PLACEHOLDER).append(".\n")
+                .append("- GRANT u operaciones sin PK no deben convertirse artificialmente en registros con PK. Menciónalos en la explicación técnica cuando corresponda.\n")
+                .append("- Si no existe ninguna evidencia BD, sustituye la tabla de ejemplo por *No Aplica*.\n\n")
                 .append("### Nivel Desarrollo\n\n[Lista numerada o párrafos separados describiendo los cambios técnicos demostrados.]\n\n")
                 .append("## Objetos Relacionados\n\n### Componentes de Aplicación\n\n")
                 .append("| Nuevo/Modificado/Reutilizado | Nombre | Ruta |\n|---|---|---|\n| [estado] | [archivo/componente] | [ruta Git exacta] |\n\n")
@@ -125,8 +136,11 @@ public class DocumentationGenerationService {
                 .append("| Campo | Valor |\n|---|---|\n| **HU** | [clave Jira] |\n\n")
                 .append("## Objetivo del Documento\n\n[Objetivo del pase sustentado por Jira/Git; no copies texto genérico de documentos de referencia.]\n\n")
                 .append("## Requisitos\n\n")
-                .append("| Item | Descripción |\n|---|---|\n| [nombre corto y estable del artefacto/requisito] | [descripción detallada sustentada] |\n\n")
-                .append("Usa etiquetas corporativas claras como 'Scripts de Base de Datos', 'Fuentes de Aplicación', 'Scripts MQ' u 'Opciones y perfiles' cuando la evidencia corresponda. No inventes etiquetas redundantes como 'Scripts de Base de Scripts'. Si no hay un requisito/artefacto demostrable, usa ").append(VALIDATION_PLACEHOLDER).append("; no inventes ZIP ni adjuntos.\n\n")
+                .append("| Item | Descripción |\n|---|---|\n| [nombre corto y estable del artefacto/requisito] | [descripción detallada sustentada; agrega ").append(UPLOAD_PLACEHOLDER).append(" si corresponde adjuntarlo manualmente] |\n\n")
+                .append("Usa etiquetas corporativas claras como 'Scripts de Base de Datos', 'Fuentes de Aplicación', 'Scripts MQ' u 'Opciones y perfiles' cuando la evidencia corresponda. No inventes etiquetas redundantes como 'Scripts de Base de Scripts'.\n")
+                .append("Cuando la evidencia demuestre que el pase requiere un archivo que normalmente debe adjuntarse al DPC —por ejemplo paquete/ZIP de scripts BD, archivo LDIF o matriz XLS/XLSX de perfiles— agrega exactamente ").append(UPLOAD_PLACEHOLDER).append(" en la descripción del requisito. El marcador significa que el revisor humano debe subir el archivo posteriormente en Confluence.\n")
+                .append("No afirmes que el adjunto ya existe, no inventes su nombre físico y no generes su contenido. Si no existe evidencia de que un adjunto aplica, no agregues ").append(UPLOAD_PLACEHOLDER).append(".\n")
+                .append("Si no hay un requisito/artefacto demostrable, usa ").append(VALIDATION_PLACEHOLDER).append(".\n\n")
                 .append("## Scripts de Base de Datos\n\n### CREACIÓN\n\n")
                 .append("| # | Nombre de Script | Consideraciones |\n|---:|---|---|\n| 1 | [ruta/nombre exacto] | [consideración sustentada] |\n\n")
                 .append("### REVERSIÓN\n\n")
@@ -161,11 +175,11 @@ public class DocumentationGenerationService {
     }
 
     private String generationSignature(JiraIssueService.JiraIssueContext jira) {
-        return "\n\n---\n\n**Documento generado por Development AI Assistant**  \n"
-                + "Generado a partir de **Jira + evidencia Git del requerimiento**.  \n"
-                + "**Requerimiento:** " + safe(jira.key()) + "  \n"
-                + "**Proveedor IA:** " + safe(ai.providerId()) + " · **Modelo:** " + safe(ai.modelId()) + "  \n"
-                + "**Estado:** Pendiente de revisión humana";
+        return "\n\n\n\n---\n\n<small>Documento generado por Development AI Assistant  \n"
+                + "Generado a partir de Jira + evidencia Git del requerimiento.  \n"
+                + "Requerimiento: " + safe(jira.key()) + "  \n"
+                + "Proveedor IA: " + safe(ai.providerId()) + " · Modelo: " + safe(ai.modelId()) + "  \n"
+                + "Estado: Pendiente de revisión humana</small>";
     }
 
     private void appendRelevantDiffs(StringBuilder prompt, List<GitChangedFile> files) {
@@ -175,7 +189,8 @@ public class DocumentationGenerationService {
         for (GitChangedFile file : candidates) {
             if (total >= MAX_TOTAL_DIFF_CHARS) break;
             String diff = file.diff();
-            int allowed = Math.min(MAX_DIFF_CHARS_PER_FILE, MAX_TOTAL_DIFF_CHARS - total);
+            int perFileLimit = isSql(file) ? MAX_SQL_DIFF_CHARS_PER_FILE : MAX_DIFF_CHARS_PER_FILE;
+            int allowed = Math.min(perFileLimit, MAX_TOTAL_DIFF_CHARS - total);
             if (diff.length() > allowed) diff = diff.substring(0, allowed) + "\n[diff truncado por límite de contexto]";
             prompt.append("\nARCHIVO: ").append(path(file)).append('\n').append(diff).append('\n');
             total += diff.length();
@@ -186,10 +201,13 @@ public class DocumentationGenerationService {
     private int relevance(GitChangedFile file) {
         String path = path(file).toLowerCase();
         int score = file.linesAdded() + file.linesDeleted();
-        if (path.endsWith(".java") || path.endsWith(".sql") || path.endsWith(".xml") || path.endsWith(".properties") || path.endsWith(".ldif")) score += 10000;
+        if (path.endsWith(".sql")) score += 30000;
+        else if (path.endsWith(".java") || path.endsWith(".xml") || path.endsWith(".properties") || path.endsWith(".ldif")) score += 10000;
         if (path.contains("test/") || path.contains("target/") || path.endsWith(".lock")) score -= 8000;
         return score;
     }
+
+    private boolean isSql(GitChangedFile file) { return path(file).toLowerCase().endsWith(".sql"); }
 
     private String path(GitChangedFile file) {
         String value = file.newPath() != null && !file.newPath().isBlank() ? file.newPath() : file.oldPath();
