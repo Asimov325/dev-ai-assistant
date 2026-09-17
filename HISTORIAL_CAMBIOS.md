@@ -127,7 +127,7 @@ Los cambios anteriores permanecen registrados en el historial Git del proyecto. 
 ---
 
 ## Cambio #010.4 — Estructura corporativa DT/DPC y edición documental
-**Estado:** Implementado en `tmp-010-4`; pendiente de promoción y validación local.
+**Estado:** Promovido a `desarrollo`; DT y DPC revisados funcionalmente en la vista preliminar.
 
 ### Implementado
 - Gemini debe devolver Markdown GFM estructurado, con títulos, subtítulos, tablas, listas, negritas y separación explícita entre secciones.
@@ -139,11 +139,22 @@ Los cambios anteriores permanecen registrados en el historial Git del proyecto. 
 - El editor Markdown ocupa el ancho disponible y aproximadamente 72% de la altura de la ventana, con redimensionamiento vertical.
 - La vista HTML conserva Markdown como fuente canónica y mantiene renderizado seguro mediante CommonMark/GFM Tables.
 
+---
+
+## Cambio #010.5 — Ajustes finales de presentación DT/DPC
+**Estado:** Implementado en `tmp-010-5`; pendiente de promoción y validación local.
+
+### Implementado
+- Las tablas documentales respetan el ancho de la hoja y las rutas/nombres técnicos largos se dividen en varias líneas sin desbordar el DT/DPC.
+- Los datos que no pueden confirmarse con Jira/Git se muestran como `[Requiere validación]`, dejando explícito que son campos pendientes de completar o confirmar durante la revisión humana.
+- Se normalizan respuestas de IA que todavía devuelvan `Requiere validación` sin corchetes para mantener un formato consistente.
+- DT y DPC incorporan al final una firma generada por la aplicación con Development AI Assistant, fuentes Jira + Git, requerimiento, proveedor/modelo IA realmente utilizado y estado `Pendiente de revisión humana`.
+- La firma se agrega al Markdown canónico y no depende de que la IA la redacte, de modo que podrá conservarse en la posterior publicación a Confluence.
+
 ### Validación requerida
-- Ejecutar `mvn clean test` tras promover a `desarrollo`.
-- Generar DT y DPC de prueba y contrastar visualmente títulos, tablas y subsecciones con las referencias corporativas de Confluence.
-- Verificar que `Editar documento` abra un área amplia y legible.
-- Confirmar que no aparezcan nombres temporales `dev-ai-analysis-*` en el documento generado.
+- Generar nuevamente DT y DPC y comprobar que ninguna tabla salga del ancho del documento.
+- Confirmar que los pendientes aparezcan como `[Requiere validación]`.
+- Confirmar que la firma aparezca al final de ambos documentos con el proveedor/modelo usado en esa generación.
 
 ---
 
