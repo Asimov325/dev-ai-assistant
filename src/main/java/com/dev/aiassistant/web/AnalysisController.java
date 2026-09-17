@@ -3,6 +3,7 @@ package com.dev.aiassistant.web;
 import com.dev.aiassistant.config.model.ConfiguredGitRepository;
 import com.dev.aiassistant.config.service.AppConfigurationService;
 import com.dev.aiassistant.documentation.DocumentationGenerationService;
+import com.dev.aiassistant.documentation.MarkdownRenderingService;
 import com.dev.aiassistant.git.model.GitChangeContext;
 import com.dev.aiassistant.git.model.GitChangedFile;
 import com.dev.aiassistant.git.service.GitSourceService;
@@ -32,10 +33,13 @@ public class AnalysisController {
     private final GitSourceService localGit;
     private final RemoteGitSourceService remoteGit;
     private final DocumentationGenerationService documentation;
+    private final MarkdownRenderingService markdown;
 
     public AnalysisController(AppConfigurationService configuration, JiraIssueService jira, GitSourceService localGit,
-                              RemoteGitSourceService remoteGit, DocumentationGenerationService documentation) {
-        this.configuration = configuration; this.jira = jira; this.localGit = localGit; this.remoteGit = remoteGit; this.documentation = documentation;
+                              RemoteGitSourceService remoteGit, DocumentationGenerationService documentation,
+                              MarkdownRenderingService markdown) {
+        this.configuration = configuration; this.jira = jira; this.localGit = localGit; this.remoteGit = remoteGit;
+        this.documentation = documentation; this.markdown = markdown;
     }
 
     @GetMapping("/api/jira/issues") @ResponseBody
@@ -56,7 +60,9 @@ public class AnalysisController {
             AnalysisData data = runAnalysis(repositoryKey, baseBranch, requirementBranch);
             session.setAttribute(ANALYSIS_SESSION_KEY, new AnalysisSnapshot(jiraKey, repositoryKey, baseBranch, requirementBranch, data));
             addAnalysis(model, data);
-            log.info("Análisis documentación: completado. jira={} archivos={} tiempoMs={}", jiraKey, data.context().changedFiles().size(), System.currentTimeMillis() - start);
+            log.info("Análisis documentación: completado. jira={} archivos={} alineada={} commitsOrigenNoIncorporados={} tiempoMs={}",
+                    jiraKey, data.context().changedFiles().size(), data.context().alignedWithBase(),
+                    data.context().baseCommitsNotInRequirement(), System.currentTimeMillis() - start);
         } catch (RuntimeException ex) {
             session.removeAttribute(ANALYSIS_SESSION_KEY); model.addAttribute("analysisError", ex.getMessage());
             log.error("Análisis documentación: error. jira={} tiempoMs={} mensaje={}", jiraKey, System.currentTimeMillis() - start, ex.getMessage());
@@ -76,6 +82,7 @@ public class AnalysisController {
             JiraIssueService.JiraIssueContext issue = jira.getContext(configuration.jira(), jiraKey);
             String generated = documentation.generate(documentType, issue, data.context());
             model.addAttribute("generatedDocument", generated);
+            model.addAttribute("generatedDocumentHtml", markdown.render(generated));
             model.addAttribute("documentGenerated", true);
             model.addAttribute("generatedTitle", normalizeDocumentType(documentType) + " " + jiraKey);
             model.addAttribute("aiProviderUsed", documentation.providerId());
@@ -98,11 +105,14 @@ public class AnalysisController {
     }
 
     private void addAnalysis(Model model, AnalysisData data) {
-        model.addAttribute("selectedRepository", data.repository()); model.addAttribute("changeContext", data.context()); model.addAttribute("changeSummary", data.summary()); model.addAttribute("analysisComplete", true);
+        model.addAttribute("selectedRepository", data.repository()); model.addAttribute("changeContext", data.context());
+        model.addAttribute("changeSummary", data.summary()); model.addAttribute("analysisComplete", true);
     }
 
     private void addSelection(Model model, String jiraKey, String jiraSummary, String jiraStatus, String repositoryKey, String baseBranch, String requirementBranch, String documentType) {
-        model.addAttribute("jiraKey", jiraKey); model.addAttribute("jiraSummary", jiraSummary); model.addAttribute("jiraStatus", jiraStatus); model.addAttribute("repositoryKey", repositoryKey); model.addAttribute("baseBranch", baseBranch); model.addAttribute("requirementBranch", requirementBranch); model.addAttribute("documentType", normalizeDocumentType(documentType));
+        model.addAttribute("jiraKey", jiraKey); model.addAttribute("jiraSummary", jiraSummary); model.addAttribute("jiraStatus", jiraStatus);
+        model.addAttribute("repositoryKey", repositoryKey); model.addAttribute("baseBranch", baseBranch);
+        model.addAttribute("requirementBranch", requirementBranch); model.addAttribute("documentType", normalizeDocumentType(documentType));
     }
 
     private String normalizeDocumentType(String documentType) {
@@ -112,7 +122,9 @@ public class AnalysisController {
 
     private void addCommon(Model model) {
         List<ConfiguredGitRepository> repositories = configuration.repositories();
-        model.addAttribute("repositories", repositories); model.addAttribute("gitConfigured", !repositories.isEmpty()); model.addAttribute("jiraConfigured", configuration.jiraConfigured()); model.addAttribute("aiConfigured", configuration.aiConfigured()); model.addAttribute("confluenceConfigured", configuration.confluenceConfigured());
+        model.addAttribute("repositories", repositories); model.addAttribute("gitConfigured", !repositories.isEmpty());
+        model.addAttribute("jiraConfigured", configuration.jiraConfigured()); model.addAttribute("aiConfigured", configuration.aiConfigured());
+        model.addAttribute("confluenceConfigured", configuration.confluenceConfigured());
     }
 
     private record AnalysisData(ConfiguredGitRepository repository, GitChangeContext context, Map<String, Long> summary) { }
