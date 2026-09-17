@@ -15,6 +15,10 @@ public class AiService {
         return aiProvider.id();
     }
 
+    public String modelId() {
+        return aiProvider.modelId();
+    }
+
     public String generate(String prompt) {
         if (prompt == null || prompt.isBlank()) {
             throw new IllegalArgumentException("El texto para la IA es obligatorio.");
