@@ -21,6 +21,17 @@ public class MarkdownRenderingService {
 
     public String render(String markdown) {
         if (markdown == null || markdown.isBlank()) return "";
-        return renderer.render(parser.parse(markdown));
+        String html = renderer.render(parser.parse(markdown));
+        return classifyTables(html);
+    }
+
+    private String classifyTables(String html) {
+        return html
+                .replace("<table>\n<thead>\n<tr>\n<th>Item</th>\n<th>Descripción</th>",
+                        "<table class=\"table-requirements\">\n<thead>\n<tr>\n<th>Item</th>\n<th>Descripción</th>")
+                .replace("<table>\n<thead>\n<tr>\n<th align=\"right\">#</th>\n<th>Nombre de Script</th>\n<th>Consideraciones</th>",
+                        "<table class=\"table-scripts\">\n<thead>\n<tr>\n<th align=\"right\">#</th>\n<th>Nombre de Script</th>\n<th>Consideraciones</th>")
+                .replace("<table>\n<thead>\n<tr>\n<th align=\"right\">#</th>\n<th>Recurso</th>\n<th>Cambio</th>\n<th>Instrucción de ejecución</th>\n<th>Instrucción de validación</th>\n<th>Reversión</th>",
+                        "<table class=\"table-deployment\">\n<thead>\n<tr>\n<th align=\"right\">#</th>\n<th>Recurso</th>\n<th>Cambio</th>\n<th>Instrucción de ejecución</th>\n<th>Instrucción de validación</th>\n<th>Reversión</th>");
     }
 }
