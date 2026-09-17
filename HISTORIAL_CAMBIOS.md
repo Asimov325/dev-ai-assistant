@@ -37,51 +37,53 @@ Los cambios anteriores permanecen registrados en el historial Git del proyecto. 
 - Git REMOTE logró autenticarse contra repositorio privado personal.
 - Jira logró realizar la prueba de conectividad.
 
-### Observaciones trasladadas a #008.2
-- La prueba Git REMOTE resultaba lenta porque clonaba el repositorio completo.
-- Las configuraciones se mantenían solo durante la ejecución y podían perder estado visual.
-- Inicio no reflejaba correctamente todas las integraciones configuradas.
-- Gemini dependía de variable de entorno.
-- Faltaba un flujo uniforme de probar → guardar → mostrar configuración.
-
----
-
 ## Cambio #008.2 — Estabilización de configuración e integraciones
-**Estado:** Implementado en `tmp-008-2`; pendiente de compilación y validación funcional local
-
-### Objetivo
-Dejar Configuración como base estable del MVP antes de incorporar el análisis Jira + Git, evitando pérdida de configuración, exposición de credenciales y operaciones Git REMOTE innecesariamente pesadas.
+**Estado:** Aplicado; validación funcional realizada y ajustes de Confluence incorporados.
 
 ### Implementado
-- Git REMOTE valida URL/autenticación/ramas con `ls-remote`, sin clonar el repositorio durante `Probar conexión`.
+- Git REMOTE valida URL/autenticación/ramas con `ls-remote`, sin clonar durante `Probar conexión`.
 - Configuración persistente fuera del repositorio en `~/.development-ai-assistant`.
 - Credenciales locales protegidas con AES/GCM y clave local separada.
 - Git, Jira, Gemini y Confluence mantienen configuración independiente.
-- Flujo uniforme: probar conexión → habilitar Guardar → configuración activa.
-- La operación Guardar no repite la conexión externa ya validada.
-- Las configuraciones activas se muestran mediante cards y dejan de exponer formularios editables.
-- Para cambiar una configuración se elimina/desactiva la actual y se vuelve a validar la nueva antes de guardarla.
-- Los tokens nunca se devuelven como campos ocultos al navegador.
-- Gemini puede recibir la API key desde Configuración y conserva como fallback la configuración externa existente.
-- Confluence puede reutilizar URL, usuario y token de Jira cuando ambos pertenecen al mismo sitio Atlassian, manteniendo Space independiente.
-- Inicio refleja el estado real de Git, Jira, Gemini y Confluence.
+- Configuraciones activas mediante cards y opción de eliminación.
+- Jira y Confluence usan configuraciones totalmente independientes.
+- Confluence valida el Space Key mediante API V2.
+- Inicio refleja el estado real de las integraciones.
 
-### Pendiente de validación antes de aprobar commit
+---
+
+## Cambio #009 — Nuevo análisis real Jira + Git
+**Estado:** Implementado; pendiente de compilación y validación funcional local.
+
+### Objetivo
+Integrar las fuentes ya configuradas dentro del flujo principal de Nuevo análisis sin convertir la pantalla documental en una herramienta de revisión Git.
+
+### Implementado
+- Búsqueda libre de requerimientos Jira, sin prefijo de proyecto hardcodeado.
+- Autocompletado Jira con máximo 5 coincidencias y selección explícita del requerimiento.
+- Rama origen y Rama del requerimiento reemplazadas por búsqueda predictiva con máximo 5 coincidencias.
+- La rama del requerimiento usa el Jira seleccionado como texto inicial de búsqueda, sin seleccionarla automáticamente.
+- El botón Analizar ejecuta la comparación real entre Rama origen y Rama del requerimiento.
+- Comparación disponible tanto para repositorios LOCAL como REMOTE configurados.
+- Resultado principal compacto: requerimiento, repositorio, ramas y cantidades de archivos modificados/nuevos/eliminados/renombrados.
+- Evidencia técnica secundaria y colapsada para evitar saturar la vista cuando existen muchos cambios.
+- El detalle de archivos muestra tipo, ruta y líneas agregadas/eliminadas.
+- Generar Documento Técnico permanece deshabilitado hasta #010.
+
+### Pendiente de validación
 - `mvn clean test`.
-- Reiniciar la aplicación y comprobar que las configuraciones persisten.
-- Git LOCAL: probar, guardar y visualizar card.
-- Git REMOTE: confirmar que `Probar conexión` es sensiblemente más rápido y guardar no vuelve a consultar la red.
-- Jira: probar, guardar, reiniciar y verificar estado/card.
-- Gemini: ingresar API key desde UI, probar, guardar y reiniciar.
-- Confluence: validar tanto credencial Atlassian compartida como configuración independiente según disponibilidad.
-- Confirmar que Inicio refleja inmediatamente los cuatro estados.
+- Búsqueda Jira por código y por texto.
+- Confirmar máximo 5 resultados en Jira y ramas.
+- Probar repositorio con gran cantidad de ramas.
+- Ejecutar análisis LOCAL y/o REMOTE entre dos ramas reales.
+- Confirmar que el resumen permanece compacto con muchos archivos modificados.
+- Revisar evidencia técnica colapsada.
 
 ### Fuera de alcance
-- Consulta funcional del Jira desde Nuevo análisis (#009).
-- Generación del Documento Técnico (#010).
-- Publicación real en Confluence.
+- Generación, visualización y edición del DT (#010).
+- Publicación del documento en Confluence.
 
 ---
 
 ## Forma de trabajo acordada
-Antes de cada nuevo bloque de desarrollo se explicará el alcance, archivos y motivo; se esperará aprobación explícita; se implementará en una rama temporal identificada con el cambio; después de la validación se esperará aprobación explícita para integrar el cambio definitivo en `desarrollo`.
+Antes de cada nuevo bloque de desarrollo se explicará el alcance, archivos y motivo; se esperará aprobación explícita; después de la implementación se realizará validación local antes de considerar estable el cambio.
