@@ -146,34 +146,40 @@ Los cambios anteriores permanecen registrados en el historial Git del proyecto. 
 
 ### Implementado y validado
 - Las tablas documentales respetan el ancho de la hoja y las rutas/nombres técnicos largos se dividen en varias líneas sin desbordar el DT/DPC.
-- Los datos que no pueden confirmarse con Jira/Git se muestran como `[Requiere validación]`, dejando explícito que son campos pendientes de completar o confirmar durante la revisión humana.
-- Se normalizan respuestas de IA que todavía devuelvan `Requiere validación` sin corchetes para mantener un formato consistente.
-- DT y DPC incorporan al final una firma generada por la aplicación con Development AI Assistant, fuentes Jira + Git, requerimiento, proveedor/modelo IA realmente utilizado y estado `Pendiente de revisión humana`.
-- La firma se agrega al Markdown canónico y no depende de que la IA la redacte, de modo que podrá conservarse en la posterior publicación a Confluence.
+- Los datos que no pueden confirmarse con Jira/Git se muestran como `[Requiere validación]`.
+- DT y DPC incorporan una firma de generación al final del Markdown canónico.
 
 ---
 
 ## Cambio #010.6 — Tablas DPC y procedimiento de pase por actividades
-**Estado:** Implementado en `tmp-010-6`; pendiente de promoción y validación local.
+**Estado:** Promovido a `desarrollo`; pendiente de validación funcional final junto con #010.7.
 
 ### Implementado
-- Las tablas DPC reciben una clasificación semántica al renderizar Markdown, sin modificar el Markdown canónico que posteriormente se publicará en Confluence.
-- `Requisitos` reserva aproximadamente 28% para Item y 72% para Descripción.
-- Las tablas de scripts reservan solo 5% para `#`, 55% para nombre/ruta del script y 40% para consideraciones.
-- `Procedimiento del Pase` reserva solo 4% para `#` y prioriza el espacio de instrucciones de ejecución, validación y reversión.
-- El prompt DPC define nombres cortos y estables para requisitos, evitando etiquetas redundantes como `Scripts de Base de Scripts`.
-- El Procedimiento del Pase se genera como secuencia de actividades de despliegue y no como inventario de archivos.
-- Los archivos Java/fuentes del mismo despliegue se consolidan en un único paso de Fuentes/Aplicación; no se crea una fila por clase Java.
-- Scripts BD, fuentes/branch, opciones LDAP/LDIF, asociaciones de perfiles, MQ u otros recursos se convierten en pasos independientes solo cuando exista evidencia Jira/Git.
-- El orden de pasos se deriva de las dependencias/evidencia del requerimiento y no se fuerza a una numeración fija.
-- Cuando una actividad está demostrada pero faltan instrucciones concretas de ejecución, validación o reversión, solo esas celdas quedan como `[Requiere validación]`.
-- Se mantiene la prohibición de inventar comandos, herramientas de compilación, pipelines, servidores, ambientes, CN LDAP o perfiles no sustentados.
+- Anchos semánticos para tablas de Requisitos, scripts y Procedimiento del Pase.
+- El Procedimiento del Pase se genera como actividades y no como inventario de archivos.
+- Archivos Java/fuentes del mismo despliegue se consolidan en un único paso.
+- Scripts BD, fuentes, opciones/perfiles y MQ se incorporan solo cuando existe evidencia.
+
+---
+
+## Cambio #010.7 — Calidad documental DT/DPC y marcadores de adjuntos
+**Estado:** Implementado en `tmp-010-7`; pendiente de promoción y validación local.
+
+### Implementado
+- DT Información general intenta completar Proceso y Sistema/opción cuando Jira + Git permiten identificarlos de forma directa y no ambigua; Impacto y Autor continúan requiriendo evidencia explícita.
+- DT Nivel BD prioriza scripts SQL y analiza múltiples INSERT/UPDATE/DELETE/MERGE/GRANT en lugar de reducir la instalación a una sola tabla.
+- Una misma tabla puede producir varias filas de Nivel BD cuando existen configuraciones/registros distintos con PK/identificador y propósito demostrables.
+- Los SQL reciben mayor prioridad y hasta 7000 caracteres de diff por archivo dentro de un contexto total ampliado a 40000 caracteres; los demás archivos mantienen un límite menor.
+- DPC Requisitos utiliza `[Subir adjunto]` cuando la evidencia demuestra que corresponde un ZIP/paquete de scripts, LDIF o XLS/XLSX que el revisor deberá adjuntar manualmente en Confluence.
+- Development AI Assistant no genera ni afirma que esos adjuntos ya existan en este alcance.
+- Las rutas/código técnico dejan de usar color de error y conservan un estilo neutro.
+- La firma no incluye textos como `Fin del documento`; se separa visualmente de la última sección y se presenta con tipografía pequeña y discreta.
 
 ### Validación requerida
-- Regenerar el DPC de MEWARI-1679 y verificar proporciones de `Requisitos`, scripts y `Procedimiento del Pase`.
-- Confirmar que los cuatro archivos Java del caso se consoliden en un único paso de fuentes/aplicación.
-- Confirmar que los scripts BD se consoliden como actividad de BD y que los detalles desconocidos queden en `[Requiere validación]`.
-- Verificar que no se inventen pasos de opciones/perfiles si la evidencia de MEWARI-1679 no los contiene.
+- Regenerar DT MEWARI-1679 y verificar que Nivel BD represente todos los registros/configuraciones demostrables en los scripts y no únicamente REGISTRY_PROCESSES.
+- Revisar Proceso y Sistema/opción; los campos sin evidencia deben conservar `[Requiere validación]`.
+- Regenerar DPC y confirmar `[Subir adjunto]` únicamente en requisitos que realmente necesiten adjunto.
+- Verificar rutas en color neutro y firma separada, pequeña y sin encabezado adicional.
 
 ---
 
