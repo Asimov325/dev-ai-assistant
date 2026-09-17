@@ -60,7 +60,7 @@ public class AnalysisController {
         try {
             AnalysisData data = runAnalysis(repositoryKey, baseBranch, requirementBranch);
             session.setAttribute(ANALYSIS_SESSION_KEY,
-                    new AnalysisSnapshot(repositoryKey, baseBranch, requirementBranch, data));
+                    new AnalysisSnapshot(jiraKey, repositoryKey, baseBranch, requirementBranch, data));
             addAnalysis(model, data);
         } catch (RuntimeException ex) {
             session.removeAttribute(ANALYSIS_SESSION_KEY);
@@ -81,26 +81,28 @@ public class AnalysisController {
                 throw new IllegalStateException("Configura y valida el proveedor de IA antes de generar documentos.");
             }
 
-            AnalysisData data = resolveAnalysis(session, repositoryKey, baseBranch, requirementBranch);
+            AnalysisData data = resolveAnalysis(session, jiraKey, repositoryKey, baseBranch, requirementBranch);
             addAnalysis(model, data);
 
             JiraIssueService.JiraIssueContext issue = jira.getContext(configuration.jira(), jiraKey);
             String generated = documentation.generate(documentType, issue, data.context());
             model.addAttribute("generatedDocument", generated);
             model.addAttribute("documentGenerated", true);
-            model.addAttribute("generatedTitle", documentType.toUpperCase() + " " + jiraKey);
+            model.addAttribute("generatedTitle", normalizeDocumentType(documentType) + " " + jiraKey);
         } catch (RuntimeException ex) {
             model.addAttribute("generationError", ex.getMessage());
         }
         return "new-documentation";
     }
 
-    private AnalysisData resolveAnalysis(HttpSession session, String repositoryKey, String baseBranch, String requirementBranch) {
+    private AnalysisData resolveAnalysis(HttpSession session, String jiraKey, String repositoryKey,
+                                         String baseBranch, String requirementBranch) {
         Object stored = session.getAttribute(ANALYSIS_SESSION_KEY);
-        if (stored instanceof AnalysisSnapshot snapshot && snapshot.matches(repositoryKey, baseBranch, requirementBranch)) {
+        if (stored instanceof AnalysisSnapshot snapshot
+                && snapshot.matches(jiraKey, repositoryKey, baseBranch, requirementBranch)) {
             return snapshot.data();
         }
-        throw new IllegalStateException("El análisis técnico ya no está disponible o cambió la selección. Ejecuta Analizar nuevamente antes de generar el documento.");
+        throw new IllegalStateException("El análisis técnico ya no está disponible o cambió el Jira/repositorio/ramas. Ejecuta Analizar nuevamente antes de generar el documento.");
     }
 
     private AnalysisData runAnalysis(String repositoryKey, String baseBranch, String requirementBranch) {
@@ -129,7 +131,13 @@ public class AnalysisController {
         model.addAttribute("repositoryKey", repositoryKey);
         model.addAttribute("baseBranch", baseBranch);
         model.addAttribute("requirementBranch", requirementBranch);
-        model.addAttribute("documentType", documentType == null ? "DT" : documentType.toUpperCase());
+        model.addAttribute("documentType", normalizeDocumentType(documentType));
+    }
+
+    private String normalizeDocumentType(String documentType) {
+        if (documentType == null || documentType.isBlank()) return "DT";
+        String normalized = documentType.trim().toUpperCase();
+        return normalized.equals("DPC") ? "DPC" : "DT";
     }
 
     private void addCommon(Model model) {
@@ -143,9 +151,11 @@ public class AnalysisController {
 
     private record AnalysisData(ConfiguredGitRepository repository, GitChangeContext context, Map<String, Long> summary) { }
 
-    private record AnalysisSnapshot(String repositoryKey, String baseBranch, String requirementBranch, AnalysisData data) {
-        private boolean matches(String repositoryKey, String baseBranch, String requirementBranch) {
-            return this.repositoryKey.equals(repositoryKey)
+    private record AnalysisSnapshot(String jiraKey, String repositoryKey, String baseBranch,
+                                    String requirementBranch, AnalysisData data) {
+        private boolean matches(String jiraKey, String repositoryKey, String baseBranch, String requirementBranch) {
+            return this.jiraKey.equals(jiraKey)
+                    && this.repositoryKey.equals(repositoryKey)
                     && this.baseBranch.equals(baseBranch)
                     && this.requirementBranch.equals(requirementBranch);
         }
