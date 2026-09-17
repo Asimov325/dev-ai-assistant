@@ -2,6 +2,7 @@ package com.dev.aiassistant.web;
 
 import com.dev.aiassistant.config.model.ConfiguredGitRepository;
 import com.dev.aiassistant.config.service.AppConfigurationService;
+import com.dev.aiassistant.documentation.DocumentationGenerationService;
 import com.dev.aiassistant.git.model.GitChangeContext;
 import com.dev.aiassistant.git.model.GitChangedFile;
 import com.dev.aiassistant.git.service.GitSourceService;
@@ -25,12 +26,15 @@ public class AnalysisController {
     private final JiraIssueService jira;
     private final GitSourceService localGit;
     private final RemoteGitSourceService remoteGit;
+    private final DocumentationGenerationService documentation;
 
-    public AnalysisController(AppConfigurationService configuration, JiraIssueService jira, GitSourceService localGit, RemoteGitSourceService remoteGit) {
+    public AnalysisController(AppConfigurationService configuration, JiraIssueService jira, GitSourceService localGit,
+                              RemoteGitSourceService remoteGit, DocumentationGenerationService documentation) {
         this.configuration = configuration;
         this.jira = jira;
         this.localGit = localGit;
         this.remoteGit = remoteGit;
+        this.documentation = documentation;
     }
 
     @GetMapping("/api/jira/issues")
@@ -43,29 +47,65 @@ public class AnalysisController {
     @PostMapping("/documentation/analyze")
     public String analyze(@RequestParam String jiraKey, @RequestParam String jiraSummary, @RequestParam String jiraStatus,
                           @RequestParam String repositoryKey, @RequestParam String baseBranch,
-                          @RequestParam String requirementBranch, Model model) {
+                          @RequestParam String requirementBranch, @RequestParam(defaultValue = "DT") String documentType, Model model) {
         addCommon(model);
+        addSelection(model, jiraKey, jiraSummary, jiraStatus, repositoryKey, baseBranch, requirementBranch, documentType);
+        try {
+            AnalysisData data = analyze(repositoryKey, baseBranch, requirementBranch);
+            addAnalysis(model, data);
+        } catch (RuntimeException ex) {
+            model.addAttribute("analysisError", ex.getMessage());
+        }
+        return "new-documentation";
+    }
+
+    @PostMapping("/documentation/generate")
+    public String generate(@RequestParam String jiraKey, @RequestParam String jiraSummary, @RequestParam String jiraStatus,
+                           @RequestParam String repositoryKey, @RequestParam String baseBranch,
+                           @RequestParam String requirementBranch, @RequestParam(defaultValue = "DT") String documentType, Model model) {
+        addCommon(model);
+        addSelection(model, jiraKey, jiraSummary, jiraStatus, repositoryKey, baseBranch, requirementBranch, documentType);
+        try {
+            if (!configuration.aiConfigured()) throw new IllegalStateException("Configura y valida el proveedor de IA antes de generar documentos.");
+            AnalysisData data = analyze(repositoryKey, baseBranch, requirementBranch);
+            addAnalysis(model, data);
+            JiraIssueService.JiraIssueContext issue = jira.getContext(configuration.jira(), jiraKey);
+            String generated = documentation.generate(documentType, issue, data.context());
+            model.addAttribute("generatedDocument", generated);
+            model.addAttribute("documentGenerated", true);
+            model.addAttribute("generatedTitle", documentType.toUpperCase() + " " + jiraKey);
+        } catch (RuntimeException ex) {
+            model.addAttribute("generationError", ex.getMessage());
+        }
+        return "new-documentation";
+    }
+
+    private AnalysisData analyze(String repositoryKey, String baseBranch, String requirementBranch) {
+        ConfiguredGitRepository repository = configuration.repository(repositoryKey)
+                .orElseThrow(() -> new IllegalArgumentException("Selecciona un repositorio configurado."));
+        GitChangeContext context = repository.remote()
+                ? remoteGit.compare(repository.location(), repository.username(), repository.secret(), baseBranch, requirementBranch)
+                : localGit.compare(repository.location(), baseBranch, requirementBranch);
+        Map<String, Long> summary = context.changedFiles().stream().collect(Collectors.groupingBy(GitChangedFile::changeType, Collectors.counting()));
+        return new AnalysisData(repository, context, summary);
+    }
+
+    private void addAnalysis(Model model, AnalysisData data) {
+        model.addAttribute("selectedRepository", data.repository());
+        model.addAttribute("changeContext", data.context());
+        model.addAttribute("changeSummary", data.summary());
+        model.addAttribute("analysisComplete", true);
+    }
+
+    private void addSelection(Model model, String jiraKey, String jiraSummary, String jiraStatus, String repositoryKey,
+                              String baseBranch, String requirementBranch, String documentType) {
         model.addAttribute("jiraKey", jiraKey);
         model.addAttribute("jiraSummary", jiraSummary);
         model.addAttribute("jiraStatus", jiraStatus);
         model.addAttribute("repositoryKey", repositoryKey);
         model.addAttribute("baseBranch", baseBranch);
         model.addAttribute("requirementBranch", requirementBranch);
-        try {
-            ConfiguredGitRepository repository = configuration.repository(repositoryKey)
-                    .orElseThrow(() -> new IllegalArgumentException("Selecciona un repositorio configurado."));
-            GitChangeContext context = repository.remote()
-                    ? remoteGit.compare(repository.location(), repository.username(), repository.secret(), baseBranch, requirementBranch)
-                    : localGit.compare(repository.location(), baseBranch, requirementBranch);
-            Map<String, Long> summary = context.changedFiles().stream().collect(Collectors.groupingBy(GitChangedFile::changeType, Collectors.counting()));
-            model.addAttribute("selectedRepository", repository);
-            model.addAttribute("changeContext", context);
-            model.addAttribute("changeSummary", summary);
-            model.addAttribute("analysisComplete", true);
-        } catch (RuntimeException ex) {
-            model.addAttribute("analysisError", ex.getMessage());
-        }
-        return "new-documentation";
+        model.addAttribute("documentType", documentType == null ? "DT" : documentType.toUpperCase());
     }
 
     private void addCommon(Model model) {
@@ -76,4 +116,6 @@ public class AnalysisController {
         model.addAttribute("aiConfigured", configuration.aiConfigured());
         model.addAttribute("confluenceConfigured", configuration.confluenceConfigured());
     }
+
+    private record AnalysisData(ConfiguredGitRepository repository, GitChangeContext context, Map<String, Long> summary) { }
 }
