@@ -57,6 +57,7 @@ public class AnalysisController {
                           @RequestParam String requirementBranch, @RequestParam(defaultValue = "DT") String documentType,
                           Model model, HttpSession session) {
         addCommon(model); addSelection(model, jiraKey, jiraSummary, jiraStatus, repositoryKey, baseBranch, requirementBranch, documentType);
+        addGenerationState(model, session, documentType);
         long start = System.currentTimeMillis();
         log.info("Análisis documentación: inicio. jira={} repositorio={} ramaOrigen={} ramaRequerimiento={} tipo={}", jiraKey, repositoryKey, baseBranch, requirementBranch, normalizeDocumentType(documentType));
         try {
