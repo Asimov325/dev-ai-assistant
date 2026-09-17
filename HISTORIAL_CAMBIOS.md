@@ -77,7 +77,7 @@ Los cambios anteriores permanecen registrados en el historial Git del proyecto. 
 ---
 
 ## Cambio #010 — Generación IA y vista preliminar DT / DPC
-**Estado:** Promovido a `desarrollo`; compilación local validada con BUILD SUCCESS. La prueba funcional detectó incompatibilidad del modelo Gemini al ejecutar `generateContent`, tratada en #010.1.
+**Estado:** Promovido a `desarrollo`; compilación local validada con BUILD SUCCESS. La prueba funcional detectó incompatibilidad del modelo Gemini al ejecutar `generateContent`, tratada en #010.1 y #010.2.
 
 ### Implementado
 - Selección independiente de DT o DPC.
@@ -90,26 +90,38 @@ Los cambios anteriores permanecen registrados en el historial Git del proyecto. 
 ---
 
 ## Cambio #010.1 — Estabilización Gemini y trazabilidad de generación
-**Estado:** Implementado en rama temporal `tmp-010-1`; pendiente de promoción a `desarrollo` y validación local.
-
-### Motivo
-La validación funcional de #010 llegó correctamente hasta la generación del DT, donde Gemini respondió que el modelo seleccionado ya no estaba disponible para `generateContent`.
+**Estado:** Promovido a `desarrollo`; compilación local reportada con BUILD SUCCESS. La prueba funcional mostró que `models.list` anunciaba `gemini-2.5-flash-lite` como compatible, pero `generateContent` devolvía HTTP 404.
 
 ### Implementado
 - Descubrimiento dinámico del catálogo de modelos que Gemini declara compatibles con `generateContent`.
-- Se mantiene un modelo preferido solo si realmente aparece como compatible; de lo contrario se selecciona dinámicamente una alternativa del catálogo.
-- Ante HTTP 404 durante `generateContent`, se invalida el modelo en memoria, se actualiza el catálogo y se permite un único reintento controlado.
-- Logging mediante SLF4J/Spring Boot para seguir análisis y generación: Jira, repositorio, ramas, tipo documental, cantidad de archivos, tamaño del prompt, proveedor, modelo, tiempos, respuesta y errores.
-- Los logs no imprimen API keys, tokens, secretos ni el contenido completo del prompt/diff.
-- La vista preliminar muestra el proveedor IA y el modelo exacto utilizado para generar el documento.
+- Logging mediante SLF4J/Spring Boot para seguir análisis y generación sin exponer credenciales ni contenido completo del prompt/diff.
+- La vista preliminar muestra proveedor IA y modelo utilizado.
+- Detección explícita del HTTP 404 durante generación.
+
+---
+
+## Cambio #010.2 — Fallback real entre modelos Gemini
+**Estado:** Implementado en rama temporal `tmp-010-2`; pendiente de promoción a `desarrollo` y validación local.
+
+### Motivo
+En la prueba funcional, Gemini listó `gemini-2.5-flash-lite` con soporte para `generateContent`, pero la llamada real devolvió HTTP 404. El reintento de #010.1 volvía a elegir el mismo modelo y no podía recuperarse.
+
+### Implementado
+- La autenticación REST de Gemini utiliza el header `x-goog-api-key` tanto para consultar modelos como para generar contenido.
+- La generación obtiene el catálogo compatible y mantiene una lista de modelos descartados únicamente durante la solicitud actual.
+- Si un modelo devuelve HTTP 404, se descarta para esa generación y se selecciona automáticamente otro candidato compatible.
+- El fallback puede recorrer candidatos alternativos hasta obtener una generación válida o agotar los modelos anunciados por Gemini.
+- Se mantiene el modelo preferido como primer intento cuando está disponible, sin permitir que bloquee los fallbacks posteriores.
+- La selección dinámica favorece generaciones actuales y modelos Flash/Lite, evitando fijar en código un único identificador concreto de Gemini.
+- Los logs muestran cada modelo descartado, el modelo alternativo elegido y el resultado de cada intento, sin registrar API keys ni el prompt completo.
 
 ### Pendiente de validación
-- Promover #010.1 a `desarrollo` previa aprobación.
+- Promover #010.2 a `desarrollo` previa aprobación.
 - Ejecutar `mvn clean test`.
-- Repetir el análisis y generación del DT.
-- Revisar en consola el modelo seleccionado y la secuencia de generación.
-- Confirmar que la vista preliminar muestre proveedor y modelo.
-- Repetir posteriormente con DPC.
+- Repetir la generación DT con el caso de prueba seleccionado por el usuario.
+- Confirmar en logs que un HTTP 404 descarta el modelo y utiliza un modelo alternativo.
+- Confirmar que la vista preliminar muestre el modelo que finalmente generó el documento.
+- Posteriormente validar generación DPC.
 
 ---
 
