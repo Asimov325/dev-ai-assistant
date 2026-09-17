@@ -29,7 +29,8 @@ import java.util.stream.Collectors;
 @Controller
 public class AnalysisController {
     private static final Logger log = LoggerFactory.getLogger(AnalysisController.class);
-    private static final String ANALYSIS_SESSION_KEY = "documentationAnalysis";\n    private static final String GENERATED_TYPES_SESSION_KEY = "generatedDocumentTypes";
+    private static final String ANALYSIS_SESSION_KEY = "documentationAnalysis";
+    private static final String GENERATED_TYPES_SESSION_KEY = "generatedDocumentTypes";
     private final AppConfigurationService configuration;
     private final JiraIssueService jira;
     private final GitSourceService localGit;
