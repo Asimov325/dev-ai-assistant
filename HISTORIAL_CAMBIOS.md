@@ -183,5 +183,25 @@ Los cambios anteriores permanecen registrados en el historial Git del proyecto. 
 
 ---
 
+## Cambio #010.7.1 — Riqueza del DPC y reutilización del análisis
+**Estado:** Implementado en `tmp-010-7-1`; pendiente de promoción y validación local.
+
+### Implementado
+- El Procedimiento del Pase conserva la información sustentada por Jira/Git y usa `[Requiere validación]` únicamente para el fragmento realmente desconocido; una celda completa queda pendiente solo cuando no existe información utilizable.
+- Base de Datos referencia conceptualmente scripts de CREACIÓN para ejecución y scripts de REVERSIÓN para reversión cuando ambos están evidenciados, sin inventar comandos.
+- Los artefactos se clasifican por naturaleza técnica: Java/recursos como Fuentes de Aplicación; SQL/PLSQL/packages/grants como Base de Datos; LDIF/perfiles y MQ en sus categorías correspondientes.
+- El análisis Jira + Git se reutiliza para DT y DPC mientras no cambien Jira, repositorio, rama origen o rama del requerimiento.
+- Cambiar únicamente DT/DPC no ejecuta nuevamente el análisis Git.
+- Después de generar correctamente un tipo documental, su acción Generar queda deshabilitada y se muestra su estado generado; el otro tipo puede generarse reutilizando la misma evidencia.
+- Un nuevo análisis invalida los estados DT/DPC generados y habilita nuevamente la generación.
+
+### Validación requerida
+- Con un único análisis MEWARI-1679, generar DPC y comprobar que el botón queda deshabilitado.
+- Cambiar a DT sin volver a pulsar Analizar y comprobar que puede generarse reutilizando la evidencia.
+- Confirmar que el Procedimiento del Pase contiene información sustentada y no tres celdas completamente vacías con `[Requiere validación]`.
+- Confirmar que PKG_ALERT/PLSQL no se clasifique como Fuente de Aplicación.
+
+---
+
 ## Forma de trabajo acordada
 Antes de cada nuevo bloque de desarrollo se explicará el alcance, archivos y motivo; se esperará aprobación explícita; después de la implementación se realizará validación local antes de considerar estable el cambio.
