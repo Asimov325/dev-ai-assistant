@@ -9,6 +9,8 @@ import com.dev.aiassistant.git.service.GitSourceService;
 import com.dev.aiassistant.git.service.RemoteGitSourceService;
 import com.dev.aiassistant.integration.JiraIssueService;
 import jakarta.servlet.http.HttpSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -23,8 +25,8 @@ import java.util.stream.Collectors;
 
 @Controller
 public class AnalysisController {
+    private static final Logger log = LoggerFactory.getLogger(AnalysisController.class);
     private static final String ANALYSIS_SESSION_KEY = "documentationAnalysis";
-
     private final AppConfigurationService configuration;
     private final JiraIssueService jira;
     private final GitSourceService localGit;
@@ -33,21 +35,13 @@ public class AnalysisController {
 
     public AnalysisController(AppConfigurationService configuration, JiraIssueService jira, GitSourceService localGit,
                               RemoteGitSourceService remoteGit, DocumentationGenerationService documentation) {
-        this.configuration = configuration;
-        this.jira = jira;
-        this.localGit = localGit;
-        this.remoteGit = remoteGit;
-        this.documentation = documentation;
+        this.configuration = configuration; this.jira = jira; this.localGit = localGit; this.remoteGit = remoteGit; this.documentation = documentation;
     }
 
-    @GetMapping("/api/jira/issues")
-    @ResponseBody
+    @GetMapping("/api/jira/issues") @ResponseBody
     public ResponseEntity<?> jiraIssues(@RequestParam String q) {
-        try {
-            return ResponseEntity.ok(jira.search(configuration.jira(), q));
-        } catch (RuntimeException ex) {
-            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
-        }
+        try { return ResponseEntity.ok(jira.search(configuration.jira(), q)); }
+        catch (RuntimeException ex) { return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage())); }
     }
 
     @PostMapping("/documentation/analyze")
@@ -55,16 +49,17 @@ public class AnalysisController {
                           @RequestParam String repositoryKey, @RequestParam String baseBranch,
                           @RequestParam String requirementBranch, @RequestParam(defaultValue = "DT") String documentType,
                           Model model, HttpSession session) {
-        addCommon(model);
-        addSelection(model, jiraKey, jiraSummary, jiraStatus, repositoryKey, baseBranch, requirementBranch, documentType);
+        addCommon(model); addSelection(model, jiraKey, jiraSummary, jiraStatus, repositoryKey, baseBranch, requirementBranch, documentType);
+        long start = System.currentTimeMillis();
+        log.info("Análisis documentación: inicio. jira={} repositorio={} ramaOrigen={} ramaRequerimiento={} tipo={}", jiraKey, repositoryKey, baseBranch, requirementBranch, normalizeDocumentType(documentType));
         try {
             AnalysisData data = runAnalysis(repositoryKey, baseBranch, requirementBranch);
-            session.setAttribute(ANALYSIS_SESSION_KEY,
-                    new AnalysisSnapshot(jiraKey, repositoryKey, baseBranch, requirementBranch, data));
+            session.setAttribute(ANALYSIS_SESSION_KEY, new AnalysisSnapshot(jiraKey, repositoryKey, baseBranch, requirementBranch, data));
             addAnalysis(model, data);
+            log.info("Análisis documentación: completado. jira={} archivos={} tiempoMs={}", jiraKey, data.context().changedFiles().size(), System.currentTimeMillis() - start);
         } catch (RuntimeException ex) {
-            session.removeAttribute(ANALYSIS_SESSION_KEY);
-            model.addAttribute("analysisError", ex.getMessage());
+            session.removeAttribute(ANALYSIS_SESSION_KEY); model.addAttribute("analysisError", ex.getMessage());
+            log.error("Análisis documentación: error. jira={} tiempoMs={} mensaje={}", jiraKey, System.currentTimeMillis() - start, ex.getMessage());
         }
         return "new-documentation";
     }
@@ -74,90 +69,56 @@ public class AnalysisController {
                            @RequestParam String repositoryKey, @RequestParam String baseBranch,
                            @RequestParam String requirementBranch, @RequestParam(defaultValue = "DT") String documentType,
                            Model model, HttpSession session) {
-        addCommon(model);
-        addSelection(model, jiraKey, jiraSummary, jiraStatus, repositoryKey, baseBranch, requirementBranch, documentType);
+        addCommon(model); addSelection(model, jiraKey, jiraSummary, jiraStatus, repositoryKey, baseBranch, requirementBranch, documentType);
         try {
-            if (!configuration.aiConfigured()) {
-                throw new IllegalStateException("Configura y valida el proveedor de IA antes de generar documentos.");
-            }
-
-            AnalysisData data = resolveAnalysis(session, jiraKey, repositoryKey, baseBranch, requirementBranch);
-            addAnalysis(model, data);
-
+            if (!configuration.aiConfigured()) throw new IllegalStateException("Configura y valida el proveedor de IA antes de generar documentos.");
+            AnalysisData data = resolveAnalysis(session, jiraKey, repositoryKey, baseBranch, requirementBranch); addAnalysis(model, data);
             JiraIssueService.JiraIssueContext issue = jira.getContext(configuration.jira(), jiraKey);
             String generated = documentation.generate(documentType, issue, data.context());
             model.addAttribute("generatedDocument", generated);
             model.addAttribute("documentGenerated", true);
             model.addAttribute("generatedTitle", normalizeDocumentType(documentType) + " " + jiraKey);
-        } catch (RuntimeException ex) {
-            model.addAttribute("generationError", ex.getMessage());
-        }
+            model.addAttribute("aiProviderUsed", documentation.providerId());
+            model.addAttribute("aiModelUsed", documentation.modelId());
+        } catch (RuntimeException ex) { model.addAttribute("generationError", ex.getMessage()); }
         return "new-documentation";
     }
 
-    private AnalysisData resolveAnalysis(HttpSession session, String jiraKey, String repositoryKey,
-                                         String baseBranch, String requirementBranch) {
+    private AnalysisData resolveAnalysis(HttpSession session, String jiraKey, String repositoryKey, String baseBranch, String requirementBranch) {
         Object stored = session.getAttribute(ANALYSIS_SESSION_KEY);
-        if (stored instanceof AnalysisSnapshot snapshot
-                && snapshot.matches(jiraKey, repositoryKey, baseBranch, requirementBranch)) {
-            return snapshot.data();
-        }
+        if (stored instanceof AnalysisSnapshot snapshot && snapshot.matches(jiraKey, repositoryKey, baseBranch, requirementBranch)) return snapshot.data();
         throw new IllegalStateException("El análisis técnico ya no está disponible o cambió el Jira/repositorio/ramas. Ejecuta Analizar nuevamente antes de generar el documento.");
     }
 
     private AnalysisData runAnalysis(String repositoryKey, String baseBranch, String requirementBranch) {
-        ConfiguredGitRepository repository = configuration.repository(repositoryKey)
-                .orElseThrow(() -> new IllegalArgumentException("Selecciona un repositorio configurado."));
-        GitChangeContext context = repository.remote()
-                ? remoteGit.compare(repository.location(), repository.username(), repository.secret(), baseBranch, requirementBranch)
-                : localGit.compare(repository.location(), baseBranch, requirementBranch);
-        Map<String, Long> summary = context.changedFiles().stream()
-                .collect(Collectors.groupingBy(GitChangedFile::changeType, Collectors.counting()));
+        ConfiguredGitRepository repository = configuration.repository(repositoryKey).orElseThrow(() -> new IllegalArgumentException("Selecciona un repositorio configurado."));
+        GitChangeContext context = repository.remote() ? remoteGit.compare(repository.location(), repository.username(), repository.secret(), baseBranch, requirementBranch) : localGit.compare(repository.location(), baseBranch, requirementBranch);
+        Map<String, Long> summary = context.changedFiles().stream().collect(Collectors.groupingBy(GitChangedFile::changeType, Collectors.counting()));
         return new AnalysisData(repository, context, summary);
     }
 
     private void addAnalysis(Model model, AnalysisData data) {
-        model.addAttribute("selectedRepository", data.repository());
-        model.addAttribute("changeContext", data.context());
-        model.addAttribute("changeSummary", data.summary());
-        model.addAttribute("analysisComplete", true);
+        model.addAttribute("selectedRepository", data.repository()); model.addAttribute("changeContext", data.context()); model.addAttribute("changeSummary", data.summary()); model.addAttribute("analysisComplete", true);
     }
 
-    private void addSelection(Model model, String jiraKey, String jiraSummary, String jiraStatus, String repositoryKey,
-                              String baseBranch, String requirementBranch, String documentType) {
-        model.addAttribute("jiraKey", jiraKey);
-        model.addAttribute("jiraSummary", jiraSummary);
-        model.addAttribute("jiraStatus", jiraStatus);
-        model.addAttribute("repositoryKey", repositoryKey);
-        model.addAttribute("baseBranch", baseBranch);
-        model.addAttribute("requirementBranch", requirementBranch);
-        model.addAttribute("documentType", normalizeDocumentType(documentType));
+    private void addSelection(Model model, String jiraKey, String jiraSummary, String jiraStatus, String repositoryKey, String baseBranch, String requirementBranch, String documentType) {
+        model.addAttribute("jiraKey", jiraKey); model.addAttribute("jiraSummary", jiraSummary); model.addAttribute("jiraStatus", jiraStatus); model.addAttribute("repositoryKey", repositoryKey); model.addAttribute("baseBranch", baseBranch); model.addAttribute("requirementBranch", requirementBranch); model.addAttribute("documentType", normalizeDocumentType(documentType));
     }
 
     private String normalizeDocumentType(String documentType) {
         if (documentType == null || documentType.isBlank()) return "DT";
-        String normalized = documentType.trim().toUpperCase();
-        return normalized.equals("DPC") ? "DPC" : "DT";
+        return documentType.trim().equalsIgnoreCase("DPC") ? "DPC" : "DT";
     }
 
     private void addCommon(Model model) {
         List<ConfiguredGitRepository> repositories = configuration.repositories();
-        model.addAttribute("repositories", repositories);
-        model.addAttribute("gitConfigured", !repositories.isEmpty());
-        model.addAttribute("jiraConfigured", configuration.jiraConfigured());
-        model.addAttribute("aiConfigured", configuration.aiConfigured());
-        model.addAttribute("confluenceConfigured", configuration.confluenceConfigured());
+        model.addAttribute("repositories", repositories); model.addAttribute("gitConfigured", !repositories.isEmpty()); model.addAttribute("jiraConfigured", configuration.jiraConfigured()); model.addAttribute("aiConfigured", configuration.aiConfigured()); model.addAttribute("confluenceConfigured", configuration.confluenceConfigured());
     }
 
     private record AnalysisData(ConfiguredGitRepository repository, GitChangeContext context, Map<String, Long> summary) { }
-
-    private record AnalysisSnapshot(String jiraKey, String repositoryKey, String baseBranch,
-                                    String requirementBranch, AnalysisData data) {
+    private record AnalysisSnapshot(String jiraKey, String repositoryKey, String baseBranch, String requirementBranch, AnalysisData data) {
         private boolean matches(String jiraKey, String repositoryKey, String baseBranch, String requirementBranch) {
-            return this.jiraKey.equals(jiraKey)
-                    && this.repositoryKey.equals(repositoryKey)
-                    && this.baseBranch.equals(baseBranch)
-                    && this.requirementBranch.equals(requirementBranch);
+            return this.jiraKey.equals(jiraKey) && this.repositoryKey.equals(repositoryKey) && this.baseBranch.equals(baseBranch) && this.requirementBranch.equals(requirementBranch);
         }
     }
 }
