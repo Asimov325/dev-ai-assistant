@@ -77,44 +77,39 @@ Los cambios anteriores permanecen registrados en el historial Git del proyecto. 
 ---
 
 ## Cambio #010 — Generación IA y vista preliminar DT / DPC
-**Estado:** Implementado en rama temporal `tmp-010`; listo para promoción controlada a `desarrollo` y validación local, previa aprobación.
-
-### Objetivo
-Convertir la evidencia reunida por #009 en un documento preliminar revisable, manteniendo a la persona como responsable de validar el contenido antes de cualquier publicación.
+**Estado:** Promovido a `desarrollo`; compilación local validada con BUILD SUCCESS. La prueba funcional detectó incompatibilidad del modelo Gemini al ejecutar `generateContent`, tratada en #010.1.
 
 ### Implementado
-- Selección independiente de Documento Técnico (DT) o Documento de Propuesta de Cambio (DPC).
-- Recuperación del contexto del Jira seleccionado para la generación: clave, título, estado, tipo y descripción.
-- Parseo estructurado del JSON de Jira mediante Jackson, incluyendo extracción controlada de la descripción ADF.
-- Generación real mediante la abstracción `AiProvider`, actualmente Gemini.
-- Contexto de IA compuesto por Jira + inventario de cambios Git + selección limitada de diferencias relevantes.
-- Límites de cantidad/tamaño de diff para evitar enviar indiscriminadamente todo el cambio a la IA.
-- Reutilización del análisis Git de la sesión durante la generación para evitar repetir el fetch/comparación REMOTE.
-- El análisis reutilizado queda ligado al Jira, repositorio, rama origen y rama del requerimiento seleccionados; si cambian, se exige analizar nuevamente.
-- Reglas explícitas contra invención de procesos, objetos, scripts, impactos y datos no sustentados.
-- El contenido Jira/Git se trata como evidencia y no como instrucciones para la IA.
-- Validación de respuesta vacía del proveedor de IA.
-- Uso de `No Aplica` y `Requiere validación` cuando la evidencia no permite completar una sección.
-- Estructura DT alineada con el DT corporativo de referencia.
-- Estructura DPC separada y alineada con el DPC corporativo de referencia: Información General, Objetivo del Documento, Requisitos, Scripts de Base de Datos (Creación/Reversión), Scripts MQ, reglas de acceso, opciones/perfiles, Procedimiento del Pase y Proceso del Plan de Ejecución.
-- Indicador de progreso durante la generación IA.
-- Vista preliminar editable dentro de Development AI Assistant.
-- El documento permanece como `Pendiente de revisión`; #010 no publica ni modifica Confluence.
-- Ningún Jira o rama de prueba está hardcodeado en la implementación.
+- Selección independiente de DT o DPC.
+- Contexto Jira + evidencia Git limitada y relevante.
+- Generación mediante `AiProvider`, actualmente Gemini.
+- Estructuras corporativas diferenciadas para DT y DPC.
+- Reglas anti-invención y estados `No Aplica` / `Requiere validación`.
+- Vista preliminar editable y sin publicación a Confluence.
+
+---
+
+## Cambio #010.1 — Estabilización Gemini y trazabilidad de generación
+**Estado:** Implementado en rama temporal `tmp-010-1`; pendiente de promoción a `desarrollo` y validación local.
+
+### Motivo
+La validación funcional de #010 llegó correctamente hasta la generación del DT, donde Gemini respondió que el modelo seleccionado ya no estaba disponible para `generateContent`.
+
+### Implementado
+- Descubrimiento dinámico del catálogo de modelos que Gemini declara compatibles con `generateContent`.
+- Se mantiene un modelo preferido solo si realmente aparece como compatible; de lo contrario se selecciona dinámicamente una alternativa del catálogo.
+- Ante HTTP 404 durante `generateContent`, se invalida el modelo en memoria, se actualiza el catálogo y se permite un único reintento controlado.
+- Logging mediante SLF4J/Spring Boot para seguir análisis y generación: Jira, repositorio, ramas, tipo documental, cantidad de archivos, tamaño del prompt, proveedor, modelo, tiempos, respuesta y errores.
+- Los logs no imprimen API keys, tokens, secretos ni el contenido completo del prompt/diff.
+- La vista preliminar muestra el proveedor IA y el modelo exacto utilizado para generar el documento.
 
 ### Pendiente de validación
-- Ejecutar `mvn clean test` localmente después de promover el bloque aprobado a `desarrollo`.
-- Levantar la aplicación y verificar que DT y DPC aparezcan en el selector.
-- Ejecutar un análisis real con un Jira y ramas seleccionadas por el usuario.
-- Generar DT y revisar que Gemini use contexto Jira + Git sin inventar información.
-- Generar DPC y revisar que use su estructura propia, distinta al DT.
-- Confirmar que el contenido preliminar pueda editarse en pantalla y que no exista publicación a Confluence.
-
-### Fuera de alcance
-- Guardado/publicación en Confluence.
-- Configuración de página padre de DT y DPC en Confluence.
-- Estado `Ready for review` en Confluence.
-- Aprobación/publicación definitiva del documento.
+- Promover #010.1 a `desarrollo` previa aprobación.
+- Ejecutar `mvn clean test`.
+- Repetir el análisis y generación del DT.
+- Revisar en consola el modelo seleccionado y la secuencia de generación.
+- Confirmar que la vista preliminar muestre proveedor y modelo.
+- Repetir posteriormente con DPC.
 
 ---
 
