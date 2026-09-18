@@ -74,6 +74,7 @@ public class AnalysisController {
         AnalysisSnapshot previous = currentSnapshot(session);
         boolean sameAnalysis = previous != null && previous.matches(jiraKey, repositoryKey, baseBranch, requirementBranch);
         if (sameAnalysis) {
+            previous = updateConfluenceDestination(session, previous, confluenceSpaceId, confluenceSpaceKey, confluenceSpaceName);
             addAnalysis(model, previous.data());
             addActiveAnalysis(model, previous);
             addGenerationState(model, previous, documentType);
@@ -162,6 +163,13 @@ public class AnalysisController {
             if (snapshot.confluenceSpaceId() == null || snapshot.confluenceSpaceId().isBlank())
                 throw new IllegalStateException("Selecciona el Space de Confluence antes de publicar.");
             String title = type + " " + snapshot.jiraKey();
+            ConfluencePublicationService.PublicationResult existing = confluencePublication.findExisting(
+                    configuration.confluence(), snapshot.confluenceSpaceId(), snapshot.confluenceSpaceKey(), snapshot.confluenceSpaceName(), title);
+            if (existing != null) {
+                model.addAttribute("publishedPage", existing);
+                model.addAttribute("publicationMessage", "El documento ya existe en Confluence. No se sobrescribió.");
+                return "new-documentation";
+            }
 
             if (parentId == null || parentId.isBlank()) {
                 List<ConfluencePublicationService.ParentPage> candidates = confluencePublication.findParentCandidates(
@@ -236,6 +244,19 @@ public class AnalysisController {
                 current.requirementBranch(), current.data(),
                 "DT".equals(type) ? generatedDocument : current.generatedDt(),
                 "DPC".equals(type) ? generatedDocument : current.generatedDpc(), current.confluenceSpaceId(), current.confluenceSpaceKey(), current.confluenceSpaceName());
+        session.setAttribute(ANALYSIS_SESSION_KEY, updated);
+        return updated;
+    }
+
+    private AnalysisSnapshot updateConfluenceDestination(HttpSession session, AnalysisSnapshot current,
+                                                        String spaceId, String spaceKey, String spaceName) {
+        if (current == null) return null;
+        if (java.util.Objects.equals(current.confluenceSpaceId(), spaceId)
+                && java.util.Objects.equals(current.confluenceSpaceKey(), spaceKey)
+                && java.util.Objects.equals(current.confluenceSpaceName(), spaceName)) return current;
+        AnalysisSnapshot updated = new AnalysisSnapshot(current.jiraKey(), current.repositoryKey(), current.baseBranch(),
+                current.requirementBranch(), current.data(), current.generatedDt(), current.generatedDpc(),
+                spaceId, spaceKey, spaceName);
         session.setAttribute(ANALYSIS_SESSION_KEY, updated);
         return updated;
     }
