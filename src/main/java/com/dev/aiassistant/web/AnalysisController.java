@@ -168,9 +168,9 @@ public class AnalysisController {
                         configuration.confluence(), snapshot.confluenceSpaceId(), type);
                 if (candidates.isEmpty()) {
                     model.addAttribute("publicationError", "No se encontró una página padre compatible para " + type + " en el Space seleccionado.");
-                } else if (candidates.size() > 1 && candidates.get(0).score() == candidates.get(1).score()) {
+                } else if (candidates.size() > 1) {
                     model.addAttribute("parentCandidates", candidates);
-                    model.addAttribute("publicationMessage", "Se encontraron varias ubicaciones posibles con igual coincidencia. Selecciona dónde publicar.");
+                    model.addAttribute("publicationMessage", "Se encontraron varias ubicaciones posibles. Selecciona dónde publicar.");
                 } else {
                     ConfluencePublicationService.ParentPage parent = candidates.get(0);
                     ConfluencePublicationService.PublicationResult result = confluencePublication.publish(configuration.confluence(),
