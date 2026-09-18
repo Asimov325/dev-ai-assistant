@@ -129,7 +129,20 @@ if(jiraInput) jiraInput.addEventListener('input',()=>{
 });
 
 document.getElementById('analysisForm')?.addEventListener('submit',e=>{const missing=[];if(!document.getElementById('jiraKey').value)missing.push('requerimiento Jira');if(!repo.value)missing.push('repositorio');if(!document.getElementById('baseBranch').value)missing.push('rama origen');if(!document.getElementById('requirementBranch').value)missing.push('rama del requerimiento');if(missing.length){e.preventDefault();alert('Selecciona: '+missing.join(', ')+'.');return}const button=document.getElementById('analyzeButton'),loading=document.getElementById('analysisLoading'),detail=document.getElementById('analysisLoadingDetail');button.disabled=true;button.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Analizando...';detail.textContent='Comparando cambios propios y alineamiento de ramas...';loading.classList.add('active')});
-document.getElementById('documentType')?.addEventListener('change',e=>{const form=document.getElementById('generateForm');if(form){form.querySelector('input[name=documentType]').value=e.target.value;const b=document.getElementById('generateButton');const generated=e.target.value==='DPC'?e.target.dataset.generatedDpc==='true':e.target.dataset.generatedDt==='true';const aiConfigured=e.target.dataset.aiConfigured==='true';b.disabled=!aiConfigured||generated;b.textContent=generated?(e.target.value==='DPC'?'DPC ya generado':'DT ya generado'):(e.target.value==='DPC'?'Generar DPC preliminar':'Generar DT preliminar')}}});
+document.getElementById('documentType')?.addEventListener('change',e=>{
+  const form=document.getElementById('generateForm');
+  if(!form) return;
+  form.querySelector('input[name=documentType]').value=e.target.value;
+  const button=document.getElementById('generateButton');
+  const generated=e.target.value==='DPC'
+    ? e.target.dataset.generatedDpc==='true'
+    : e.target.dataset.generatedDt==='true';
+  const aiConfigured=e.target.dataset.aiConfigured==='true';
+  button.disabled=!aiConfigured||generated;
+  button.textContent=generated
+    ? (e.target.value==='DPC'?'DPC ya generado':'DT ya generado')
+    : (e.target.value==='DPC'?'Generar DPC preliminar':'Generar DT preliminar');
+});
 document.getElementById('generateForm')?.addEventListener('submit',()=>{const button=document.getElementById('generateButton'),loading=document.getElementById('generationLoading'),type=document.querySelector('#generateForm input[name=documentType]').value;button.disabled=true;button.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Generando...';document.getElementById('generationLoadingTitle').textContent=type==='DPC'?'Generando DPC con IA...':'Generando Documento Técnico con IA...';loading.classList.add('active')});
 const edit=document.getElementById('editDocumentButton'),rendered=document.getElementById('documentRendered'),editor=document.getElementById('documentEditorWrap'),cancel=document.getElementById('cancelEditButton');if(edit)edit.onclick=()=>{rendered.classList.add('d-none');editor.classList.remove('d-none');edit.classList.add('d-none')};if(cancel)cancel.onclick=()=>{editor.classList.add('d-none');rendered.classList.remove('d-none');edit.classList.remove('d-none')};document.addEventListener('click',e=>{if(!e.target.closest('.predict'))document.querySelectorAll('.suggestions').forEach(x=>x.classList.add('d-none'))});
 </script></body></html>
