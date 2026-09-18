@@ -20,17 +20,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Controller
 public class AnalysisController {
     private static final Logger log = LoggerFactory.getLogger(AnalysisController.class);
     private static final String ANALYSIS_SESSION_KEY = "documentationAnalysis";
-    private static final String GENERATED_TYPES_SESSION_KEY = "generatedDocumentTypes";
     private final AppConfigurationService configuration;
     private final JiraIssueService jira;
     private final GitSourceService localGit;
@@ -57,19 +54,23 @@ public class AnalysisController {
                           @RequestParam String requirementBranch, @RequestParam(defaultValue = "DT") String documentType,
                           Model model, HttpSession session) {
         addCommon(model); addSelection(model, jiraKey, jiraSummary, jiraStatus, repositoryKey, baseBranch, requirementBranch, documentType);
-        addGenerationState(model, session, documentType);
+        AnalysisSnapshot previous = currentSnapshot(session);
+        boolean sameAnalysis = previous != null && previous.matches(jiraKey, repositoryKey, baseBranch, requirementBranch);
         long start = System.currentTimeMillis();
         log.info("Análisis documentación: inicio. jira={} repositorio={} ramaOrigen={} ramaRequerimiento={} tipo={}", jiraKey, repositoryKey, baseBranch, requirementBranch, normalizeDocumentType(documentType));
         try {
             AnalysisData data = runAnalysis(repositoryKey, baseBranch, requirementBranch);
-            session.setAttribute(ANALYSIS_SESSION_KEY, new AnalysisSnapshot(jiraKey, repositoryKey, baseBranch, requirementBranch, data));
+            AnalysisSnapshot snapshot = new AnalysisSnapshot(jiraKey, repositoryKey, baseBranch, requirementBranch, data,
+                    sameAnalysis ? previous.generatedDt() : false,
+                    sameAnalysis ? previous.generatedDpc() : false);
+            session.setAttribute(ANALYSIS_SESSION_KEY, snapshot);
             addAnalysis(model, data);
+            addGenerationState(model, snapshot, documentType);
             log.info("Análisis documentación: completado. jira={} archivos={} alineada={} commitsOrigenNoIncorporados={} tiempoMs={}",
                     jiraKey, data.context().changedFiles().size(), data.context().alignedWithBase(),
                     data.context().baseCommitsNotInRequirement(), System.currentTimeMillis() - start);
         } catch (RuntimeException ex) {
             session.removeAttribute(ANALYSIS_SESSION_KEY);
-            session.removeAttribute(GENERATED_TYPES_SESSION_KEY);
             model.addAttribute("analysisError", ex.getMessage());
             log.error("Análisis documentación: error. jira={} tiempoMs={} mensaje={}", jiraKey, System.currentTimeMillis() - start, ex.getMessage());
         }
@@ -93,10 +94,10 @@ public class AnalysisController {
             model.addAttribute("generatedTitle", normalizeDocumentType(documentType) + " " + jiraKey);
             model.addAttribute("aiProviderUsed", documentation.providerId());
             model.addAttribute("aiModelUsed", documentation.modelId());
-            markGenerated(session, documentType);
-            addGenerationState(model, session, documentType);
+            AnalysisSnapshot updated = markGenerated(session, documentType);
+            addGenerationState(model, updated, documentType);
         } catch (RuntimeException ex) {
-            addGenerationState(model, session, documentType);
+            addGenerationState(model, currentSnapshot(session), documentType);
             model.addAttribute("generationError", ex.getMessage());
         }
         return "new-documentation";
@@ -131,24 +132,29 @@ public class AnalysisController {
         return documentType.trim().equalsIgnoreCase("DPC") ? "DPC" : "DT";
     }
 
-    @SuppressWarnings("unchecked")
-    private Set<String> generatedTypes(HttpSession session) {
-        Object value = session.getAttribute(GENERATED_TYPES_SESSION_KEY);
-        if (value instanceof Set<?> stored) return (Set<String>) stored;
-        Set<String> created = new HashSet<>();
-        session.setAttribute(GENERATED_TYPES_SESSION_KEY, created);
-        return created;
+    private AnalysisSnapshot currentSnapshot(HttpSession session) {
+        Object stored = session.getAttribute(ANALYSIS_SESSION_KEY);
+        return stored instanceof AnalysisSnapshot snapshot ? snapshot : null;
     }
 
-    private void markGenerated(HttpSession session, String documentType) {
-        generatedTypes(session).add(normalizeDocumentType(documentType));
+    private AnalysisSnapshot markGenerated(HttpSession session, String documentType) {
+        AnalysisSnapshot current = currentSnapshot(session);
+        if (current == null) throw new IllegalStateException("No existe un análisis activo para asociar el documento generado.");
+        String type = normalizeDocumentType(documentType);
+        AnalysisSnapshot updated = new AnalysisSnapshot(current.jiraKey(), current.repositoryKey(), current.baseBranch(),
+                current.requirementBranch(), current.data(), current.generatedDt() || "DT".equals(type),
+                current.generatedDpc() || "DPC".equals(type));
+        session.setAttribute(ANALYSIS_SESSION_KEY, updated);
+        return updated;
     }
 
-    private void addGenerationState(Model model, HttpSession session, String documentType) {
-        Set<String> generated = generatedTypes(session);
-        model.addAttribute("generatedDt", generated.contains("DT"));
-        model.addAttribute("generatedDpc", generated.contains("DPC"));
-        model.addAttribute("selectedDocumentAlreadyGenerated", generated.contains(normalizeDocumentType(documentType)));
+    private void addGenerationState(Model model, AnalysisSnapshot snapshot, String documentType) {
+        boolean generatedDt = snapshot != null && snapshot.generatedDt();
+        boolean generatedDpc = snapshot != null && snapshot.generatedDpc();
+        model.addAttribute("generatedDt", generatedDt);
+        model.addAttribute("generatedDpc", generatedDpc);
+        model.addAttribute("selectedDocumentAlreadyGenerated",
+                "DPC".equals(normalizeDocumentType(documentType)) ? generatedDpc : generatedDt);
     }
 
     private void addCommon(Model model) {
@@ -159,7 +165,8 @@ public class AnalysisController {
     }
 
     private record AnalysisData(ConfiguredGitRepository repository, GitChangeContext context, Map<String, Long> summary) { }
-    private record AnalysisSnapshot(String jiraKey, String repositoryKey, String baseBranch, String requirementBranch, AnalysisData data) {
+    private record AnalysisSnapshot(String jiraKey, String repositoryKey, String baseBranch, String requirementBranch,
+                                    AnalysisData data, boolean generatedDt, boolean generatedDpc) {
         private boolean matches(String jiraKey, String repositoryKey, String baseBranch, String requirementBranch) {
             return this.jiraKey.equals(jiraKey) && this.repositoryKey.equals(repositoryKey) && this.baseBranch.equals(baseBranch) && this.requirementBranch.equals(requirementBranch);
         }
