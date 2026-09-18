@@ -7,7 +7,7 @@
 <div class="main-content"><header class="topbar"><strong>Nuevo análisis</strong></header><main class="content-wrap"><h1 class="page-title">Nueva documentación</h1><p class="page-subtitle mb-4">Selecciona el requerimiento y la evidencia de código que se utilizarán para preparar un documento preliminar.</p>
 <form method="post" action="/documentation/analyze" id="analysisForm">
 <section class="panel mb-4"><span class="section-label">1 · Requerimiento</span><div th:if="${!jiraConfigured}" class="alert alert-warning mt-3 mb-0">Jira no está configurado. <a href="/settings" class="alert-link">Ir a Configuración</a></div><div th:if="${jiraConfigured}" class="mt-3"><label class="form-label">Requerimiento Jira</label><div class="predict"><input id="jiraSearch" class="form-control" autocomplete="off" placeholder="Escribe código o texto del requerimiento" th:value="${jiraKey}"><div id="jiraSuggestions" class="suggestions d-none"></div></div><input type="hidden" name="jiraKey" id="jiraKey" th:value="${jiraKey}"><input type="hidden" name="jiraSummary" id="jiraSummary" th:value="${jiraSummary}"><input type="hidden" name="jiraStatus" id="jiraStatus" th:value="${jiraStatus}"><div id="jiraSelected" class="small text-secondary mt-2" th:text="${jiraKey != null && !jiraKey.isBlank() ? '✓ ' + jiraKey + ' · ' + jiraSummary : 'Escribe al menos 2 caracteres y selecciona un requerimiento.'}"></div></div></section>
-<section class="panel mb-4"><span class="section-label">2 · Código fuente</span><div th:if="${!gitConfigured}" class="alert alert-warning mt-3 mb-0">No existen repositorios Git configurados. <a href="/settings" class="alert-link">Configurar Git</a></div><div th:if="${gitConfigured}" class="row g-3 mt-1"><div class="col-12"><label class="form-label">Repositorio</label><select id="repository" name="repositoryKey" class="form-select" required><option value="">Seleccionar...</option><option th:each="repo:${repositories}" th:value="${repo.key}" th:text="${repo.name + ' · ' + repo.source}" th:selected="${repo.key == repositoryKey}"></option></select></div><div class="col-md-6"><label class="form-label">Rama origen</label><div class="predict"><input id="baseBranchSearch" class="form-control" autocomplete="off" placeholder="Escribe para buscar una rama" th:value="${baseBranch}"><div id="baseBranchSuggestions" class="suggestions d-none"></div></div><input type="hidden" id="baseBranch" name="baseBranch" th:value="${baseBranch}"></div><div class="col-md-6"><label class="form-label">Rama del requerimiento</label><div class="predict"><input id="requirementBranchSearch" class="form-control" autocomplete="off" placeholder="Escribe para buscar una rama" th:value="${requirementBranch}"><div id="requirementBranchSuggestions" class="suggestions d-none"></div></div><input type="hidden" id="requirementBranch" name="requirementBranch" th:value="${requirementBranch}"></div><div class="col-12"><small class="text-secondary">La búsqueda muestra hasta 5 coincidencias. REMOTE representa la fuente compartida; LOCAL permite análisis preliminar.</small></div></div></section>
+<section class="panel mb-4"><span class="section-label">2 · Código fuente</span><div th:if="${!gitConfigured}" class="alert alert-warning mt-3 mb-0">No existen repositorios Git configurados. <a href="/settings" class="alert-link">Configurar Git</a></div><div th:if="${gitConfigured}" class="row g-3 mt-1"><div class="col-12"><label class="form-label">Repositorio</label><select id="repository" name="repositoryKey" class="form-select" required><option value="">Seleccionar...</option><option th:each="repo:${repositories}" th:value="${repo.key}" th:text="${repo.name + ' · ' + repo.source}" th:selected="${repo.key == repositoryKey}" th:attr="data-branches=${#strings.listJoin(repo.branches, '|')}"></option></select></div><div class="col-md-6"><label class="form-label">Rama origen</label><div class="predict"><input id="baseBranchSearch" class="form-control" autocomplete="off" placeholder="Escribe para buscar una rama" th:value="${baseBranch}"><div id="baseBranchSuggestions" class="suggestions d-none"></div></div><input type="hidden" id="baseBranch" name="baseBranch" th:value="${baseBranch}"></div><div class="col-md-6"><label class="form-label">Rama del requerimiento</label><div class="predict"><input id="requirementBranchSearch" class="form-control" autocomplete="off" placeholder="Escribe para buscar una rama" th:value="${requirementBranch}"><div id="requirementBranchSuggestions" class="suggestions d-none"></div></div><input type="hidden" id="requirementBranch" name="requirementBranch" th:value="${requirementBranch}"></div><div class="col-12"><small class="text-secondary">La búsqueda muestra hasta 5 coincidencias. REMOTE representa la fuente compartida; LOCAL permite análisis preliminar.</small></div></div></section>
 <section class="panel mb-4"><span class="section-label">3 · Documento</span><div class="row g-3 mt-1"><div class="col-lg-8"><label class="form-label">Tipo de documento</label><select id="documentType" name="documentType" class="form-select" th:attr="data-generated-dt=${generatedDt ?: false},data-generated-dpc=${generatedDpc ?: false},data-ai-configured=${aiConfigured ?: false}"><option value="DT" th:selected="${documentType == null || documentType == 'DT'}">Documento Técnico (DT)</option><option value="DPC" th:selected="${documentType == 'DPC'}">Documento de Propuesta de Cambio (DPC)</option></select></div><div class="col-lg-4 d-grid align-self-end"><button id="analyzeButton" class="btn btn-dark" type="submit" th:disabled="${analysisActive ?: false}" th:text="${(analysisActive ?: false) ? 'Análisis activo' : 'Analizar'}">Analizar</button></div></div><div id="analysisLoading" class="analysis-loading align-items-center gap-3 mt-3 p-3 border rounded"><div class="spinner-border spinner-border-sm"></div><div><strong>Analizando requerimiento y código fuente...</strong><div id="analysisLoadingDetail" class="small text-secondary">Preparando comparación Git.</div></div></div></section></form>
 <section th:if="${analysisActive}" class="panel mb-4 border-success"><div class="d-flex justify-content-between align-items-start gap-3"><div><span class="section-label">Análisis activo en sesión</span><div class="mt-2"><strong th:text="${activeJiraKey}"></strong><span class="text-secondary" th:text="${' · ' + activeRepositoryName + ' · ' + activeRepositorySource}"></span></div><div class="small text-secondary mt-1" th:text="${activeBaseBranch + ' → ' + activeRequirementBranch}"></div><div class="small text-secondary mt-2">Este análisis se reutiliza para generar DT y DPC sin volver a comparar Jira + Git.</div></div><form method="post" action="/documentation/analysis/reset"><button type="submit" class="btn btn-outline-secondary btn-sm">Nuevo análisis</button></form></div></section>
 <div th:if="${analysisError}" class="alert alert-danger" th:text="${analysisError}"></div><div th:if="${generationError}" class="alert alert-danger"><strong>No fue posible generar el documento.</strong><div th:text="${generationError}"></div></div>
@@ -21,91 +21,111 @@
 </main></div></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script><script>
 const repo=document.getElementById('repository');
+let repositoryBranches=[];
 
-function predictiveList(inputId, hiddenId, listId, loader, onSelect) {
-  const input=document.getElementById(inputId), hidden=document.getElementById(hiddenId), list=document.getElementById(listId);
-  if(!input || !hidden || !list) return;
-  let timer;
-  const close=()=>list.classList.add('d-none');
-  input.addEventListener('input',()=>{
-    hidden.value='';
-    clearTimeout(timer);
-    list.innerHTML='';
-    const q=input.value.trim();
-    if(q.length<2){ close(); return; }
-    timer=setTimeout(async()=>{
-      try{
-        const items=await loader(q);
-        list.innerHTML='';
-        items.slice(0,5).forEach(item=>{
-          const button=document.createElement('button');
-          button.type='button'; button.className='suggestion';
-          onSelect.render(button,item);
-          button.addEventListener('click',()=>{
-            input.value=onSelect.value(item);
-            hidden.value=onSelect.value(item);
-            onSelect.selected(item);
-            close();
-          });
-          list.appendChild(button);
-        });
-        list.classList.toggle('d-none',list.children.length===0);
-      }catch(error){
-        list.innerHTML='';
-        const message=document.createElement('div');
-        message.className='p-2 small text-danger';
-        message.textContent=error.message;
-        list.appendChild(message);
-        list.classList.remove('d-none');
-      }
-    },250);
-  });
-}
-
-predictiveList('jiraSearch','jiraKey','jiraSuggestions',
-  async q=>{
-    const response=await fetch('/api/jira/issues?q='+encodeURIComponent(q));
-    const data=await response.json();
-    if(!response.ok) throw new Error(data.error||'Error consultando Jira');
-    return data;
-  },
-  {
-    value:item=>item.key,
-    render:(button,item)=>{
-      const title=document.createElement('strong'); title.textContent=item.key;
-      const detail=document.createElement('div'); detail.className='small text-secondary';
-      detail.textContent=(item.summary||'')+(item.status?' · '+item.status:'');
-      button.append(title,detail);
-    },
-    selected:item=>{
-      document.getElementById('jiraSummary').value=item.summary||'';
-      document.getElementById('jiraStatus').value=item.status||'';
-      document.getElementById('jiraSelected').textContent='✓ '+item.key+' · '+(item.summary||'');
-      const requirement=document.getElementById('requirementBranchSearch');
-      if(requirement && !requirement.value){ requirement.value=item.key; requirement.dispatchEvent(new Event('input')); }
-    }
-  });
-
-async function loadBranches(q){
+function readRepositoryBranches(){
   if(!repo || !repo.value) return [];
-  const response=await fetch('/api/git/branches?repositoryKey='+encodeURIComponent(repo.value)+'&q='+encodeURIComponent(q));
-  const data=await response.json();
-  if(!response.ok) throw new Error(data.error||'Error consultando ramas Git');
-  return data;
+  const option=repo.options[repo.selectedIndex];
+  return (option.dataset.branches||'').split('|').filter(Boolean);
 }
-const branchSelect={
-  value:item=>item,
-  render:(button,item)=>{button.textContent=item;},
-  selected:()=>{}
-};
-predictiveList('baseBranchSearch','baseBranch','baseBranchSuggestions',loadBranches,branchSelect);
-predictiveList('requirementBranchSearch','requirementBranch','requirementBranchSuggestions',loadBranches,branchSelect);
-if(repo) repo.addEventListener('change',()=>{
-  ['baseBranch','requirementBranch'].forEach(id=>{
-    const hidden=document.getElementById(id), input=document.getElementById(id+'Search');
-    if(hidden) hidden.value='';
-    if(input) input.value='';
-  });
+
+function branchPredict(inputId,hiddenId,listId){
+  const input=document.getElementById(inputId),hidden=document.getElementById(hiddenId),list=document.getElementById(listId);
+  if(!input || !hidden || !list) return;
+  function render(){
+    const query=input.value.trim().toLowerCase();
+    hidden.value='';
+    list.innerHTML='';
+    if(query.length<2 || !repo || !repo.value){list.classList.add('d-none');return}
+    const predictiveBranches=repositoryBranches
+      .filter(branch=>branch.toLowerCase().includes(query))
+      .slice(0,5);
+    predictiveBranches.forEach(branch=>{
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='suggestion';
+      button.textContent=branch;
+      button.addEventListener('click',()=>{
+        input.value=branch;
+        hidden.value=branch;
+        list.classList.add('d-none');
+      });
+      list.appendChild(button);
+    });
+    list.classList.toggle('d-none',predictiveBranches.length===0);
+  }
+  input.addEventListener('input',render);
+  input.addEventListener('focus',render);
+}
+
+function refreshRepositoryBranches(clearSelection){
+  repositoryBranches=[...readRepositoryBranches()];
+  if(clearSelection){
+    ['baseBranch','requirementBranch'].forEach(id=>{
+      const hidden=document.getElementById(id),input=document.getElementById(id+'Search');
+      if(hidden) hidden.value='';
+      if(input) input.value='';
+    });
+  }
+}
+
+if(repo){
+  refreshRepositoryBranches(false);
+  repo.addEventListener('change',()=>refreshRepositoryBranches(true));
+}
+branchPredict('baseBranchSearch','baseBranch','baseBranchSuggestions');
+branchPredict('requirementBranchSearch','requirementBranch','requirementBranchSuggestions');
+
+const jiraInput=document.getElementById('jiraSearch'),jiraList=document.getElementById('jiraSuggestions');
+let jiraTimer;
+if(jiraInput) jiraInput.addEventListener('input',()=>{
+  document.getElementById('jiraKey').value='';
+  clearTimeout(jiraTimer);
+  const query=jiraInput.value.trim();
+  jiraList.innerHTML='';
+  if(query.length<2){jiraList.classList.add('d-none');return}
+  jiraTimer=setTimeout(async()=>{
+    try{
+      const response=await fetch('/api/jira/issues?q='+encodeURIComponent(query));
+      const jiraResults=await response.json();
+      jiraList.innerHTML='';
+      if(!response.ok) throw new Error(jiraResults.error||'Error Jira');
+      const predictiveJiraResults=jiraResults.slice(0,5);
+      predictiveJiraResults.forEach(item=>{
+        const button=document.createElement('button');
+        button.type='button';
+        button.className='suggestion';
+        const title=document.createElement('strong');
+        title.textContent=item.key;
+        const detail=document.createElement('div');
+        detail.className='small text-secondary';
+        detail.textContent=(item.summary||'')+(item.status?' · '+item.status:'');
+        button.append(title,detail);
+        button.addEventListener('click',()=>{
+          jiraInput.value=item.key;
+          document.getElementById('jiraKey').value=item.key;
+          document.getElementById('jiraSummary').value=item.summary||'';
+          document.getElementById('jiraStatus').value=item.status||'';
+          document.getElementById('jiraSelected').textContent='✓ '+item.key+' · '+(item.summary||'');
+          jiraList.classList.add('d-none');
+          const requirement=document.getElementById('requirementBranchSearch');
+          if(requirement && !requirement.value){
+            requirement.value=item.key;
+            requirement.dispatchEvent(new Event('input'));
+          }
+        });
+        jiraList.appendChild(button);
+      });
+      jiraList.classList.toggle('d-none',predictiveJiraResults.length===0);
+    }catch(error){
+      jiraList.innerHTML='';
+      const message=document.createElement('div');
+      message.className='p-2 small text-danger';
+      message.textContent=error.message;
+      jiraList.appendChild(message);
+      jiraList.classList.remove('d-none');
+    }
+  },300);
 });
 
 document.getElementById('analysisForm')?.addEventListener('submit',e=>{const missing=[];if(!document.getElementById('jiraKey').value)missing.push('requerimiento Jira');if(!repo.value)missing.push('repositorio');if(!document.getElementById('baseBranch').value)missing.push('rama origen');if(!document.getElementById('requirementBranch').value)missing.push('rama del requerimiento');if(missing.length){e.preventDefault();alert('Selecciona: '+missing.join(', ')+'.');return}const button=document.getElementById('analyzeButton'),loading=document.getElementById('analysisLoading'),detail=document.getElementById('analysisLoadingDetail');button.disabled=true;button.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Analizando...';detail.textContent='Comparando cambios propios y alineamiento de ramas...';loading.classList.add('active')});
