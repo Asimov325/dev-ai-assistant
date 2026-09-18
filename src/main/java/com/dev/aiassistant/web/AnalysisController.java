@@ -138,7 +138,8 @@ public class AnalysisController {
 
     @PostMapping("/documentation/confluence/publish")
     public String publishConfluence(@RequestParam String documentType, @RequestParam(required=false) String parentId,
-                                    Model model, HttpSession session) {
+                                    @RequestParam(required=false, defaultValue="") String jiraSummary,
+                                    @RequestParam(required=false, defaultValue="") String jiraStatus, Model model, HttpSession session) {
         addCommon(model);
         AnalysisSnapshot snapshot = currentSnapshot(session);
         if (snapshot == null) {
@@ -147,7 +148,7 @@ public class AnalysisController {
         }
         String type = normalizeDocumentType(documentType);
         String generated = generatedDocument(snapshot, type);
-        addSelection(model, snapshot.jiraKey(), "", "", snapshot.repositoryKey(), snapshot.baseBranch(), snapshot.requirementBranch(), type,
+        addSelection(model, snapshot.jiraKey(), jiraSummary, jiraStatus, snapshot.repositoryKey(), snapshot.baseBranch(), snapshot.requirementBranch(), type,
                 snapshot.confluenceSpaceId(), snapshot.confluenceSpaceKey(), snapshot.confluenceSpaceName());
         addAnalysis(model, snapshot.data()); addActiveAnalysis(model, snapshot); addGenerationState(model, snapshot, type);
         if (generated != null) {
