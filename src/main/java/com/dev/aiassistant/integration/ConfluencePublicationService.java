@@ -58,6 +58,22 @@ public class ConfluencePublicationService {
         }
     }
 
+    public PublicationResult findExisting(IntegrationConfig config, String spaceId, String spaceKey, String spaceName, String title) {
+        requireConfigured(config, spaceId);
+        try {
+            ExistingPage existing = findExistingPage(config, spaceId, title);
+            if (existing == null) return null;
+            return new PublicationResult(false, true, existing.id(), title, spaceKey, spaceName,
+                    "", "", pageUrl(config, existing.id()));
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("La validación de documentos existentes fue interrumpida.", ex);
+        } catch (Exception ex) {
+            if (ex instanceof IllegalStateException state) throw state;
+            throw new IllegalStateException("No fue posible validar si el documento ya existe en Confluence.", ex);
+        }
+    }
+
     public PublicationResult publish(IntegrationConfig config, String spaceId, String spaceKey, String spaceName,
                                      String parentId, String parentTitle, String title, String storageHtml) {
         requireConfigured(config, spaceId);
