@@ -22,21 +22,11 @@ public class AtlassianConnectionService {
     }
 
     public ConnectionResult testConfluence(IntegrationConfig config) {
-        if (!config.complete() || blank(config.context())) return ConnectionResult.error("Completa URL de Confluence, Space Key, usuario y token.");
+        if (!config.complete()) return ConnectionResult.error("Completa URL de Confluence, usuario y token.");
         try {
-            String baseUrl = normalizeConfluenceBaseUrl(config.url());
-            String credentials = Base64.getEncoder().encodeToString((config.username() + ":" + config.secret()).getBytes(StandardCharsets.UTF_8));
-            String key = URLEncoder.encode(config.context().trim(), StandardCharsets.UTF_8);
-            HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/api/v2/spaces?keys=" + key + "&limit=10"))
-                    .timeout(Duration.ofSeconds(15)).header("Accept", "application/json")
-                    .header("Authorization", "Basic " + credentials).GET().build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                String body = response.body() == null ? "" : response.body();
-                if (body.contains("\"key\":\"" + escapeJson(config.context().trim()) + "\"") || body.contains("\"key\": \"" + escapeJson(config.context().trim()) + "\""))
-                    return ConnectionResult.ok("Conexión con Confluence correcta. Space Key " + config.context().trim() + " accesible.");
-                return ConnectionResult.error("Confluence: conexión correcta, pero no se encontró el Space Key " + config.context().trim() + " con este usuario.");
-            }
+            HttpResponse<String> response = confluenceGet(config, "/api/v2/spaces?limit=1");
+            if (response.statusCode() >= 200 && response.statusCode() < 300)
+                return ConnectionResult.ok("Conexión con Confluence correcta. La cuenta puede consultar sus espacios accesibles.");
             return httpError("Confluence", response.statusCode());
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
@@ -44,6 +34,15 @@ public class AtlassianConnectionService {
         } catch (Exception ex) {
             return ConnectionResult.error("Confluence: no fue posible establecer conexión. Revisa URL, red/VPN y configuración.");
         }
+    }
+
+    public HttpResponse<String> confluenceGet(IntegrationConfig config, String path) throws Exception {
+        String baseUrl = normalizeConfluenceBaseUrl(config.url());
+        String credentials = Base64.getEncoder().encodeToString((config.username() + ":" + config.secret()).getBytes(StandardCharsets.UTF_8));
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + path))
+                .timeout(Duration.ofSeconds(15)).header("Accept", "application/json")
+                .header("Authorization", "Basic " + credentials).GET().build();
+        return client.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
     private ConnectionResult test(IntegrationConfig config, String path, String system, String successDetail) {
