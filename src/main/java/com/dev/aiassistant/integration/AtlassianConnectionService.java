@@ -44,6 +44,17 @@ public class AtlassianConnectionService {
         return client.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
+    public HttpResponse<String> confluencePost(IntegrationConfig config, String path, String jsonBody) throws Exception {
+        String baseUrl = normalizeConfluenceBaseUrl(config.url());
+        String credentials = Base64.getEncoder().encodeToString((config.username() + ":" + config.secret()).getBytes(StandardCharsets.UTF_8));
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + path))
+                .timeout(Duration.ofSeconds(20)).header("Accept", "application/json")
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Basic " + credentials)
+                .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8)).build();
+        return client.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
     private ConnectionResult test(IntegrationConfig config, String path, String system, String successDetail) {
         try {
             String baseUrl = config.url().replaceAll("/+$", "");
