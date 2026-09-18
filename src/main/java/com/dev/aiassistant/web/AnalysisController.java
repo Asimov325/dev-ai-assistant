@@ -75,7 +75,7 @@ public class AnalysisController {
         try {
             AnalysisData data = runAnalysis(repositoryKey, baseBranch, requirementBranch);
             AnalysisSnapshot snapshot = new AnalysisSnapshot(jiraKey, repositoryKey, baseBranch, requirementBranch, data,
-                    false, false);
+                    null, null);
             session.setAttribute(ANALYSIS_SESSION_KEY, snapshot);
             addAnalysis(model, data);
             addActiveAnalysis(model, snapshot);
@@ -102,16 +102,21 @@ public class AnalysisController {
             if (!configuration.aiConfigured()) throw new IllegalStateException("Configura y valida el proveedor de IA antes de generar documentos.");
             AnalysisData data = resolveAnalysis(session, jiraKey, repositoryKey, baseBranch, requirementBranch); addAnalysis(model, data);
             addActiveAnalysis(model, currentSnapshot(session));
-            JiraIssueService.JiraIssueContext issue = jira.getContext(configuration.jira(), jiraKey);
-            String generated = documentation.generate(documentType, issue, data.context(), data.repository().name());
+            String type = normalizeDocumentType(documentType);
+            AnalysisSnapshot snapshot = currentSnapshot(session);
+            String generated = generatedDocument(snapshot, type);
+            if (generated == null) {
+                JiraIssueService.JiraIssueContext issue = jira.getContext(configuration.jira(), jiraKey);
+                generated = documentation.generate(type, issue, data.context(), data.repository().name());
+                snapshot = storeGeneratedDocument(session, type, generated);
+            }
             model.addAttribute("generatedDocument", generated);
             model.addAttribute("generatedDocumentHtml", markdown.render(generated));
             model.addAttribute("documentGenerated", true);
             model.addAttribute("generatedTitle", normalizeDocumentType(documentType) + " " + jiraKey);
             model.addAttribute("aiProviderUsed", documentation.providerId());
             model.addAttribute("aiModelUsed", documentation.modelId());
-            AnalysisSnapshot updated = markGenerated(session, documentType);
-            addGenerationState(model, updated, documentType);
+            addGenerationState(model, snapshot, documentType);
         } catch (RuntimeException ex) {
             addGenerationState(model, currentSnapshot(session), documentType);
             model.addAttribute("generationError", ex.getMessage());
@@ -153,20 +158,26 @@ public class AnalysisController {
         return stored instanceof AnalysisSnapshot snapshot ? snapshot : null;
     }
 
-    private AnalysisSnapshot markGenerated(HttpSession session, String documentType) {
+    private AnalysisSnapshot storeGeneratedDocument(HttpSession session, String documentType, String generatedDocument) {
         AnalysisSnapshot current = currentSnapshot(session);
         if (current == null) throw new IllegalStateException("No existe un análisis activo para asociar el documento generado.");
         String type = normalizeDocumentType(documentType);
         AnalysisSnapshot updated = new AnalysisSnapshot(current.jiraKey(), current.repositoryKey(), current.baseBranch(),
-                current.requirementBranch(), current.data(), current.generatedDt() || "DT".equals(type),
-                current.generatedDpc() || "DPC".equals(type));
+                current.requirementBranch(), current.data(),
+                "DT".equals(type) ? generatedDocument : current.generatedDt(),
+                "DPC".equals(type) ? generatedDocument : current.generatedDpc());
         session.setAttribute(ANALYSIS_SESSION_KEY, updated);
         return updated;
     }
 
+    private String generatedDocument(AnalysisSnapshot snapshot, String documentType) {
+        if (snapshot == null) return null;
+        return "DPC".equals(normalizeDocumentType(documentType)) ? snapshot.generatedDpc() : snapshot.generatedDt();
+    }
+
     private void addGenerationState(Model model, AnalysisSnapshot snapshot, String documentType) {
-        boolean generatedDt = snapshot != null && snapshot.generatedDt();
-        boolean generatedDpc = snapshot != null && snapshot.generatedDpc();
+        boolean generatedDt = snapshot != null && snapshot.generatedDt() != null;
+        boolean generatedDpc = snapshot != null && snapshot.generatedDpc() != null;
         model.addAttribute("generatedDt", generatedDt);
         model.addAttribute("generatedDpc", generatedDpc);
         model.addAttribute("selectedDocumentAlreadyGenerated",
@@ -194,7 +205,7 @@ public class AnalysisController {
 
     private record AnalysisData(ConfiguredGitRepository repository, GitChangeContext context, Map<String, Long> summary) { }
     private record AnalysisSnapshot(String jiraKey, String repositoryKey, String baseBranch, String requirementBranch,
-                                    AnalysisData data, boolean generatedDt, boolean generatedDpc) {
+                                    AnalysisData data, String generatedDt, String generatedDpc) {
         private boolean matches(String jiraKey, String repositoryKey, String baseBranch, String requirementBranch) {
             return this.jiraKey.equals(jiraKey) && this.repositoryKey.equals(repositoryKey) && this.baseBranch.equals(baseBranch) && this.requirementBranch.equals(requirementBranch);
         }
