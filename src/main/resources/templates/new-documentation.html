@@ -8,7 +8,8 @@
 <form method="post" action="/documentation/analyze" id="analysisForm">
 <section class="panel mb-4"><span class="section-label">1 · Requerimiento</span><div th:if="${!jiraConfigured}" class="alert alert-warning mt-3 mb-0">Jira no está configurado. <a href="/settings" class="alert-link">Ir a Configuración</a></div><div th:if="${jiraConfigured}" class="mt-3"><label class="form-label">Requerimiento Jira</label><div class="predict"><input id="jiraSearch" class="form-control" autocomplete="off" placeholder="Escribe código o texto del requerimiento" th:value="${jiraKey}"><div id="jiraSuggestions" class="suggestions d-none"></div></div><input type="hidden" name="jiraKey" id="jiraKey" th:value="${jiraKey}"><input type="hidden" name="jiraSummary" id="jiraSummary" th:value="${jiraSummary}"><input type="hidden" name="jiraStatus" id="jiraStatus" th:value="${jiraStatus}"><div id="jiraSelected" class="small text-secondary mt-2" th:text="${jiraKey != null && !jiraKey.isBlank() ? '✓ ' + jiraKey + ' · ' + jiraSummary : 'Escribe al menos 2 caracteres y selecciona un requerimiento.'}"></div></div></section>
 <section class="panel mb-4"><span class="section-label">2 · Código fuente</span><div th:if="${!gitConfigured}" class="alert alert-warning mt-3 mb-0">No existen repositorios Git configurados. <a href="/settings" class="alert-link">Configurar Git</a></div><div th:if="${gitConfigured}" class="row g-3 mt-1"><div class="col-12"><label class="form-label">Repositorio</label><select id="repository" name="repositoryKey" class="form-select" required><option value="">Seleccionar...</option><option th:each="repo:${repositories}" th:value="${repo.key}" th:text="${repo.name + ' · ' + repo.source}" th:selected="${repo.key == repositoryKey}" th:attr="data-branches=${#strings.listJoin(repo.branches, '|')}"></option></select></div><div class="col-md-6"><label class="form-label">Rama origen</label><div class="predict"><input id="baseBranchSearch" class="form-control" autocomplete="off" placeholder="Escribe para buscar una rama" th:value="${baseBranch}"><div id="baseBranchSuggestions" class="suggestions d-none"></div></div><input type="hidden" id="baseBranch" name="baseBranch" th:value="${baseBranch}"></div><div class="col-md-6"><label class="form-label">Rama del requerimiento</label><div class="predict"><input id="requirementBranchSearch" class="form-control" autocomplete="off" placeholder="Escribe para buscar una rama" th:value="${requirementBranch}"><div id="requirementBranchSuggestions" class="suggestions d-none"></div></div><input type="hidden" id="requirementBranch" name="requirementBranch" th:value="${requirementBranch}"></div><div class="col-12"><small class="text-secondary">La búsqueda muestra hasta 5 coincidencias. REMOTE representa la fuente compartida; LOCAL permite análisis preliminar.</small></div></div></section>
-<section class="panel mb-4"><span class="section-label">3 · Documento</span><div class="row g-3 mt-1"><div class="col-lg-8"><label class="form-label">Tipo de documento</label><select id="documentType" name="documentType" class="form-select" th:attr="data-generated-dt=${generatedDt ?: false},data-generated-dpc=${generatedDpc ?: false},data-ai-configured=${aiConfigured ?: false}"><option value="DT" th:selected="${documentType == null || documentType == 'DT'}">Documento Técnico (DT)</option><option value="DPC" th:selected="${documentType == 'DPC'}">Documento de Propuesta de Cambio (DPC)</option></select></div><div class="col-lg-4 d-grid align-self-end"><button id="analyzeButton" class="btn btn-dark" type="submit" th:disabled="${analysisActive ?: false}" th:text="${(analysisActive ?: false) ? 'Análisis activo' : 'Analizar'}">Analizar</button></div></div><div id="analysisLoading" class="analysis-loading align-items-center gap-3 mt-3 p-3 border rounded"><div class="spinner-border spinner-border-sm"></div><div><strong>Analizando requerimiento y código fuente...</strong><div id="analysisLoadingDetail" class="small text-secondary">Preparando comparación Git.</div></div></div></section></form>
+<section class="panel mb-4"><span class="section-label">3 · Destino Confluence</span><div th:if="${!confluenceConfigured}" class="alert alert-warning mt-3 mb-0">Confluence no está configurado. <a href="/settings" class="alert-link">Ir a Configuración</a></div><div th:if="${confluenceConfigured}" class="mt-3"><label class="form-label">Espacio Confluence</label><div class="predict"><input id="confluenceSpaceSearch" class="form-control" autocomplete="off" placeholder="Escribe Space Key o nombre del espacio"><div id="confluenceSpaceSuggestions" class="suggestions d-none"></div></div><input type="hidden" id="confluenceSpaceId"><input type="hidden" id="confluenceSpaceKey"><input type="hidden" id="confluenceSpaceName"><div id="confluenceSpaceSelected" class="small text-secondary mt-2">Escribe al menos 2 caracteres y selecciona un espacio accesible para la cuenta configurada.</div></div></section>
+<section class="panel mb-4"><span class="section-label">4 · Documento</span><div class="row g-3 mt-1"><div class="col-lg-8"><label class="form-label">Tipo de documento</label><select id="documentType" name="documentType" class="form-select" th:attr="data-generated-dt=${generatedDt ?: false},data-generated-dpc=${generatedDpc ?: false},data-ai-configured=${aiConfigured ?: false}"><option value="DT" th:selected="${documentType == null || documentType == 'DT'}">Documento Técnico (DT)</option><option value="DPC" th:selected="${documentType == 'DPC'}">Documento de Propuesta de Cambio (DPC)</option></select></div><div class="col-lg-4 d-grid align-self-end"><button id="analyzeButton" class="btn btn-dark" type="submit" th:disabled="${analysisActive ?: false}" th:text="${(analysisActive ?: false) ? 'Análisis activo' : 'Analizar'}">Analizar</button></div></div><div id="analysisLoading" class="analysis-loading align-items-center gap-3 mt-3 p-3 border rounded"><div class="spinner-border spinner-border-sm"></div><div><strong>Analizando requerimiento y código fuente...</strong><div id="analysisLoadingDetail" class="small text-secondary">Preparando comparación Git.</div></div></div></section></form>
 <section th:if="${analysisActive}" class="panel mb-4 border-success"><div class="d-flex justify-content-between align-items-start gap-3"><div><span class="section-label">Análisis activo en sesión</span><div class="mt-2"><strong th:text="${activeJiraKey}"></strong><span class="text-secondary" th:text="${' · ' + activeRepositoryName + ' · ' + activeRepositorySource}"></span></div><div class="small text-secondary mt-1" th:text="${activeBaseBranch + ' → ' + activeRequirementBranch}"></div><div class="small text-secondary mt-2">Este análisis se reutiliza para generar DT y DPC sin volver a comparar Jira + Git.</div></div><form method="post" action="/documentation/analysis/reset"><button type="submit" class="btn btn-outline-secondary btn-sm">Nuevo análisis</button></form></div></section>
 <div th:if="${analysisError}" class="alert alert-danger" th:text="${analysisError}"></div><div th:if="${generationError}" class="alert alert-danger"><strong>No fue posible generar el documento.</strong><div th:text="${generationError}"></div></div>
 <section th:if="${analysisComplete}" class="panel mb-4"><span class="section-label">Análisis completado</span><div class="mt-3"><h5 class="mb-1" th:text="${jiraKey}"></h5><div class="text-secondary" th:text="${jiraSummary}"></div><div class="small text-secondary mt-1" th:if="${jiraStatus}" th:text="${'Estado Jira: ' + jiraStatus}"></div></div><hr><div><strong>Código fuente</strong><div class="text-secondary" th:text="${selectedRepository.name + ' · ' + selectedRepository.source}"></div><div class="small" th:text="${baseBranch + ' → ' + requirementBranch}"></div></div>
@@ -75,6 +76,42 @@ if(repo){
 }
 branchPredict('baseBranchSearch','baseBranch','baseBranchSuggestions');
 branchPredict('requirementBranchSearch','requirementBranch','requirementBranchSuggestions');
+
+const confluenceSpaceInput=document.getElementById('confluenceSpaceSearch'),confluenceSpaceList=document.getElementById('confluenceSpaceSuggestions');
+let confluenceSpaceTimer;
+if(confluenceSpaceInput && confluenceSpaceList) confluenceSpaceInput.addEventListener('input',()=>{
+  clearTimeout(confluenceSpaceTimer);
+  ['confluenceSpaceId','confluenceSpaceKey','confluenceSpaceName'].forEach(id=>document.getElementById(id).value='');
+  const query=confluenceSpaceInput.value.trim();
+  confluenceSpaceList.innerHTML='';
+  if(query.length<2){confluenceSpaceList.classList.add('d-none');return}
+  confluenceSpaceTimer=setTimeout(async()=>{
+    try{
+      const response=await fetch('/api/confluence/spaces?q='+encodeURIComponent(query));
+      const data=await response.json();
+      if(!response.ok) throw new Error(data.error||'No fue posible consultar espacios.');
+      confluenceSpaceList.innerHTML='';
+      data.slice(0,5).forEach(space=>{
+        const button=document.createElement('button');
+        button.type='button';button.className='suggestion';button.textContent=space.key+' — '+space.name;
+        button.addEventListener('click',()=>{
+          confluenceSpaceInput.value=space.key+' — '+space.name;
+          document.getElementById('confluenceSpaceId').value=space.id;
+          document.getElementById('confluenceSpaceKey').value=space.key;
+          document.getElementById('confluenceSpaceName').value=space.name;
+          document.getElementById('confluenceSpaceSelected').textContent='✓ '+space.key+' · '+space.name;
+          confluenceSpaceList.classList.add('d-none');
+        });
+        confluenceSpaceList.appendChild(button);
+      });
+      confluenceSpaceList.classList.toggle('d-none',data.length===0);
+    }catch(error){
+      confluenceSpaceList.innerHTML='';
+      const message=document.createElement('div');message.className='p-2 small text-danger';message.textContent=error.message;
+      confluenceSpaceList.appendChild(message);confluenceSpaceList.classList.remove('d-none');
+    }
+  },300);
+});
 
 const jiraInput=document.getElementById('jiraSearch'),jiraList=document.getElementById('jiraSuggestions');
 let jiraTimer;
