@@ -56,13 +56,19 @@ public class AnalysisController {
         addCommon(model); addSelection(model, jiraKey, jiraSummary, jiraStatus, repositoryKey, baseBranch, requirementBranch, documentType);
         AnalysisSnapshot previous = currentSnapshot(session);
         boolean sameAnalysis = previous != null && previous.matches(jiraKey, repositoryKey, baseBranch, requirementBranch);
+        if (sameAnalysis) {
+            addAnalysis(model, previous.data());
+            addGenerationState(model, previous, documentType);
+            log.info("Análisis documentación: reutilizado. jira={} repositorio={} ramaOrigen={} ramaRequerimiento={} tipo={}",
+                    jiraKey, repositoryKey, baseBranch, requirementBranch, normalizeDocumentType(documentType));
+            return "new-documentation";
+        }
         long start = System.currentTimeMillis();
         log.info("Análisis documentación: inicio. jira={} repositorio={} ramaOrigen={} ramaRequerimiento={} tipo={}", jiraKey, repositoryKey, baseBranch, requirementBranch, normalizeDocumentType(documentType));
         try {
             AnalysisData data = runAnalysis(repositoryKey, baseBranch, requirementBranch);
             AnalysisSnapshot snapshot = new AnalysisSnapshot(jiraKey, repositoryKey, baseBranch, requirementBranch, data,
-                    sameAnalysis ? previous.generatedDt() : false,
-                    sameAnalysis ? previous.generatedDpc() : false);
+                    false, false);
             session.setAttribute(ANALYSIS_SESSION_KEY, snapshot);
             addAnalysis(model, data);
             addGenerationState(model, snapshot, documentType);
