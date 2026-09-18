@@ -10,6 +10,7 @@ import com.dev.aiassistant.git.service.GitSourceService;
 import com.dev.aiassistant.git.service.RemoteGitSourceService;
 import com.dev.aiassistant.integration.JiraIssueService;
 import com.dev.aiassistant.integration.ConfluenceSpaceService;
+import com.dev.aiassistant.integration.ConfluencePublicationService;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,15 +33,16 @@ public class AnalysisController {
     private final AppConfigurationService configuration;
     private final JiraIssueService jira;
     private final ConfluenceSpaceService confluenceSpaces;
+    private final ConfluencePublicationService confluencePublication;
     private final GitSourceService localGit;
     private final RemoteGitSourceService remoteGit;
     private final DocumentationGenerationService documentation;
     private final MarkdownRenderingService markdown;
 
-    public AnalysisController(AppConfigurationService configuration, JiraIssueService jira, ConfluenceSpaceService confluenceSpaces, GitSourceService localGit,
+    public AnalysisController(AppConfigurationService configuration, JiraIssueService jira, ConfluenceSpaceService confluenceSpaces, ConfluencePublicationService confluencePublication, GitSourceService localGit,
                               RemoteGitSourceService remoteGit, DocumentationGenerationService documentation,
                               MarkdownRenderingService markdown) {
-        this.configuration = configuration; this.jira = jira; this.confluenceSpaces = confluenceSpaces; this.localGit = localGit; this.remoteGit = remoteGit;
+        this.configuration = configuration; this.jira = jira; this.confluenceSpaces = confluenceSpaces; this.confluencePublication = confluencePublication; this.localGit = localGit; this.remoteGit = remoteGit;
         this.documentation = documentation; this.markdown = markdown;
     }
 
@@ -66,8 +68,9 @@ public class AnalysisController {
     public String analyze(@RequestParam String jiraKey, @RequestParam String jiraSummary, @RequestParam String jiraStatus,
                           @RequestParam String repositoryKey, @RequestParam String baseBranch,
                           @RequestParam String requirementBranch, @RequestParam(defaultValue = "DT") String documentType,
-                          Model model, HttpSession session) {
-        addCommon(model); addSelection(model, jiraKey, jiraSummary, jiraStatus, repositoryKey, baseBranch, requirementBranch, documentType);
+                          @RequestParam(required=false) String confluenceSpaceId, @RequestParam(required=false) String confluenceSpaceKey,
+                          @RequestParam(required=false) String confluenceSpaceName, Model model, HttpSession session) {
+        addCommon(model); addSelection(model, jiraKey, jiraSummary, jiraStatus, repositoryKey, baseBranch, requirementBranch, documentType, confluenceSpaceId, confluenceSpaceKey, confluenceSpaceName);
         AnalysisSnapshot previous = currentSnapshot(session);
         boolean sameAnalysis = previous != null && previous.matches(jiraKey, repositoryKey, baseBranch, requirementBranch);
         if (sameAnalysis) {
@@ -83,7 +86,7 @@ public class AnalysisController {
         try {
             AnalysisData data = runAnalysis(repositoryKey, baseBranch, requirementBranch);
             AnalysisSnapshot snapshot = new AnalysisSnapshot(jiraKey, repositoryKey, baseBranch, requirementBranch, data,
-                    null, null);
+                    null, null, confluenceSpaceId, confluenceSpaceKey, confluenceSpaceName);
             session.setAttribute(ANALYSIS_SESSION_KEY, snapshot);
             addAnalysis(model, data);
             addActiveAnalysis(model, snapshot);
@@ -104,8 +107,9 @@ public class AnalysisController {
     public String generate(@RequestParam String jiraKey, @RequestParam String jiraSummary, @RequestParam String jiraStatus,
                            @RequestParam String repositoryKey, @RequestParam String baseBranch,
                            @RequestParam String requirementBranch, @RequestParam(defaultValue = "DT") String documentType,
-                           Model model, HttpSession session) {
-        addCommon(model); addSelection(model, jiraKey, jiraSummary, jiraStatus, repositoryKey, baseBranch, requirementBranch, documentType);
+                           @RequestParam(required=false) String confluenceSpaceId, @RequestParam(required=false) String confluenceSpaceKey,
+                           @RequestParam(required=false) String confluenceSpaceName, Model model, HttpSession session) {
+        addCommon(model); addSelection(model, jiraKey, jiraSummary, jiraStatus, repositoryKey, baseBranch, requirementBranch, documentType, confluenceSpaceId, confluenceSpaceKey, confluenceSpaceName);
         try {
             if (!configuration.aiConfigured()) throw new IllegalStateException("Configura y valida el proveedor de IA antes de generar documentos.");
             AnalysisData data = resolveAnalysis(session, jiraKey, repositoryKey, baseBranch, requirementBranch); addAnalysis(model, data);
@@ -132,6 +136,50 @@ public class AnalysisController {
         return "new-documentation";
     }
 
+    @PostMapping("/documentation/confluence/publish")
+    public String publishConfluence(@RequestParam String documentType, @RequestParam(required=false) String parentId,
+                                    Model model, HttpSession session) {
+        addCommon(model);
+        AnalysisSnapshot snapshot = currentSnapshot(session);
+        if (snapshot == null) {
+            model.addAttribute("publicationError", "No existe un análisis activo. Ejecuta un nuevo análisis antes de publicar.");
+            return "new-documentation";
+        }
+        String type = normalizeDocumentType(documentType);
+        String generated = generatedDocument(snapshot, type);
+        addSelection(model, snapshot.jiraKey(), "", "", snapshot.repositoryKey(), snapshot.baseBranch(), snapshot.requirementBranch(), type,
+                snapshot.confluenceSpaceId(), snapshot.confluenceSpaceKey(), snapshot.confluenceSpaceName());
+        addAnalysis(model, snapshot.data()); addActiveAnalysis(model, snapshot); addGenerationState(model, snapshot, type);
+        if (generated != null) {
+            model.addAttribute("generatedDocument", generated); model.addAttribute("generatedDocumentHtml", markdown.render(generated));
+            model.addAttribute("documentGenerated", true); model.addAttribute("generatedTitle", type + " " + snapshot.jiraKey());
+            model.addAttribute("aiProviderUsed", documentation.providerId()); model.addAttribute("aiModelUsed", documentation.modelId());
+        }
+        try {
+            if (generated == null) throw new IllegalStateException("El documento todavía no ha sido generado.");
+            ConfluencePublicationService.PublicationPreparation prep = confluencePublication.prepare(configuration.confluence(),
+                    snapshot.confluenceSpaceId(), snapshot.confluenceSpaceKey(), snapshot.confluenceSpaceName(), type, snapshot.jiraKey(), parentId);
+            if ("EXISTS".equals(prep.state())) {
+                model.addAttribute("publicationExisting", prep.existingPage());
+                model.addAttribute("publicationMessage", "El documento ya existe en Confluence. No se sobrescribió.");
+            } else if ("CHOOSE_PARENT".equals(prep.state())) {
+                model.addAttribute("parentCandidates", prep.candidates());
+                model.addAttribute("publicationMessage", "Se encontraron varias ubicaciones posibles. Selecciona dónde publicar.");
+            } else if ("NO_PARENT".equals(prep.state())) {
+                model.addAttribute("publicationError", "No se encontró una página padre compatible para " + type + " en el Space seleccionado.");
+            } else {
+                ConfluencePublicationService.PublishedPage published = confluencePublication.publish(configuration.confluence(),
+                        snapshot.confluenceSpaceId(), snapshot.confluenceSpaceKey(), snapshot.confluenceSpaceName(),
+                        prep.parent().id(), type, snapshot.jiraKey(), markdown.render(generated));
+                model.addAttribute("publishedPage", published);
+                model.addAttribute("publicationMessage", published.alreadyExisted() ? "El documento ya existía en Confluence." : "Documento publicado correctamente en Confluence.");
+            }
+        } catch (RuntimeException ex) {
+            model.addAttribute("publicationError", ex.getMessage());
+        }
+        return "new-documentation";
+    }
+
     private AnalysisData resolveAnalysis(HttpSession session, String jiraKey, String repositoryKey, String baseBranch, String requirementBranch) {
         Object stored = session.getAttribute(ANALYSIS_SESSION_KEY);
         if (stored instanceof AnalysisSnapshot snapshot && snapshot.matches(jiraKey, repositoryKey, baseBranch, requirementBranch)) return snapshot.data();
@@ -150,10 +198,12 @@ public class AnalysisController {
         model.addAttribute("changeSummary", data.summary()); model.addAttribute("analysisComplete", true);
     }
 
-    private void addSelection(Model model, String jiraKey, String jiraSummary, String jiraStatus, String repositoryKey, String baseBranch, String requirementBranch, String documentType) {
+    private void addSelection(Model model, String jiraKey, String jiraSummary, String jiraStatus, String repositoryKey, String baseBranch, String requirementBranch, String documentType,
+                              String confluenceSpaceId, String confluenceSpaceKey, String confluenceSpaceName) {
         model.addAttribute("jiraKey", jiraKey); model.addAttribute("jiraSummary", jiraSummary); model.addAttribute("jiraStatus", jiraStatus);
         model.addAttribute("repositoryKey", repositoryKey); model.addAttribute("baseBranch", baseBranch);
         model.addAttribute("requirementBranch", requirementBranch); model.addAttribute("documentType", normalizeDocumentType(documentType));
+        model.addAttribute("confluenceSpaceId", confluenceSpaceId); model.addAttribute("confluenceSpaceKey", confluenceSpaceKey); model.addAttribute("confluenceSpaceName", confluenceSpaceName);
     }
 
     private String normalizeDocumentType(String documentType) {
@@ -173,7 +223,7 @@ public class AnalysisController {
         AnalysisSnapshot updated = new AnalysisSnapshot(current.jiraKey(), current.repositoryKey(), current.baseBranch(),
                 current.requirementBranch(), current.data(),
                 "DT".equals(type) ? generatedDocument : current.generatedDt(),
-                "DPC".equals(type) ? generatedDocument : current.generatedDpc());
+                "DPC".equals(type) ? generatedDocument : current.generatedDpc(), current.confluenceSpaceId(), current.confluenceSpaceKey(), current.confluenceSpaceName());
         session.setAttribute(ANALYSIS_SESSION_KEY, updated);
         return updated;
     }
@@ -213,7 +263,7 @@ public class AnalysisController {
 
     private record AnalysisData(ConfiguredGitRepository repository, GitChangeContext context, Map<String, Long> summary) { }
     private record AnalysisSnapshot(String jiraKey, String repositoryKey, String baseBranch, String requirementBranch,
-                                    AnalysisData data, String generatedDt, String generatedDpc) {
+                                    AnalysisData data, String generatedDt, String generatedDpc, String confluenceSpaceId, String confluenceSpaceKey, String confluenceSpaceName) {
         private boolean matches(String jiraKey, String repositoryKey, String baseBranch, String requirementBranch) {
             return this.jiraKey.equals(jiraKey) && this.repositoryKey.equals(repositoryKey) && this.baseBranch.equals(baseBranch) && this.requirementBranch.equals(requirementBranch);
         }
