@@ -138,6 +138,7 @@ public class AnalysisController {
 
     @PostMapping("/documentation/confluence/publish")
     public String publishConfluence(@RequestParam String documentType, @RequestParam(required=false) String parentId,
+                                    @RequestParam(required=false) String parentTitle,
                                     @RequestParam(required=false, defaultValue="") String jiraSummary,
                                     @RequestParam(required=false, defaultValue="") String jiraStatus, Model model, HttpSession session) {
         addCommon(model);
@@ -158,22 +159,32 @@ public class AnalysisController {
         }
         try {
             if (generated == null) throw new IllegalStateException("El documento todavía no ha sido generado.");
-            ConfluencePublicationService.PublicationPreparation prep = confluencePublication.prepare(configuration.confluence(),
-                    snapshot.confluenceSpaceId(), snapshot.confluenceSpaceKey(), snapshot.confluenceSpaceName(), type, snapshot.jiraKey(), parentId);
-            if ("EXISTS".equals(prep.state())) {
-                model.addAttribute("publicationExisting", prep.existingPage());
-                model.addAttribute("publicationMessage", "El documento ya existe en Confluence. No se sobrescribió.");
-            } else if ("CHOOSE_PARENT".equals(prep.state())) {
-                model.addAttribute("parentCandidates", prep.candidates());
-                model.addAttribute("publicationMessage", "Se encontraron varias ubicaciones posibles. Selecciona dónde publicar.");
-            } else if ("NO_PARENT".equals(prep.state())) {
-                model.addAttribute("publicationError", "No se encontró una página padre compatible para " + type + " en el Space seleccionado.");
+            if (snapshot.confluenceSpaceId() == null || snapshot.confluenceSpaceId().isBlank())
+                throw new IllegalStateException("Selecciona el Space de Confluence antes de publicar.");
+            String title = type + " " + snapshot.jiraKey();
+
+            if (parentId == null || parentId.isBlank()) {
+                List<ConfluencePublicationService.ParentPage> candidates = confluencePublication.findParentCandidates(
+                        configuration.confluence(), snapshot.confluenceSpaceId(), type);
+                if (candidates.isEmpty()) {
+                    model.addAttribute("publicationError", "No se encontró una página padre compatible para " + type + " en el Space seleccionado.");
+                } else if (candidates.size() > 1) {
+                    model.addAttribute("parentCandidates", candidates);
+                    model.addAttribute("publicationMessage", "Se encontraron varias ubicaciones posibles. Selecciona dónde publicar.");
+                } else {
+                    ConfluencePublicationService.ParentPage parent = candidates.get(0);
+                    ConfluencePublicationService.PublicationResult result = confluencePublication.publish(configuration.confluence(),
+                            snapshot.confluenceSpaceId(), snapshot.confluenceSpaceKey(), snapshot.confluenceSpaceName(),
+                            parent.id(), parent.title(), title, markdown.render(generated));
+                    model.addAttribute("publishedPage", result);
+                    model.addAttribute("publicationMessage", result.alreadyExists() ? "El documento ya existe en Confluence. No se sobrescribió." : "Documento publicado correctamente en Confluence.");
+                }
             } else {
-                ConfluencePublicationService.PublishedPage published = confluencePublication.publish(configuration.confluence(),
+                ConfluencePublicationService.PublicationResult result = confluencePublication.publish(configuration.confluence(),
                         snapshot.confluenceSpaceId(), snapshot.confluenceSpaceKey(), snapshot.confluenceSpaceName(),
-                        prep.parent().id(), type, snapshot.jiraKey(), markdown.render(generated));
-                model.addAttribute("publishedPage", published);
-                model.addAttribute("publicationMessage", published.alreadyExisted() ? "El documento ya existía en Confluence." : "Documento publicado correctamente en Confluence.");
+                        parentId, parentTitle, title, markdown.render(generated));
+                model.addAttribute("publishedPage", result);
+                model.addAttribute("publicationMessage", result.alreadyExists() ? "El documento ya existe en Confluence. No se sobrescribió." : "Documento publicado correctamente en Confluence.");
             }
         } catch (RuntimeException ex) {
             model.addAttribute("publicationError", ex.getMessage());
