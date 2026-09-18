@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.util.List;
 import java.util.Map;
@@ -48,6 +49,29 @@ public class AnalysisController {
         catch (RuntimeException ex) { return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage())); }
     }
 
+    @GetMapping("/api/git/branches") @ResponseBody
+    public ResponseEntity<?> gitBranches(@RequestParam String repositoryKey, @RequestParam String q) {
+        try {
+            String query = q == null ? "" : q.trim().toLowerCase();
+            if (query.length() < 2) return ResponseEntity.ok(List.of());
+            ConfiguredGitRepository repository = configuration.repository(repositoryKey)
+                    .orElseThrow(() -> new IllegalArgumentException("Selecciona un repositorio configurado."));
+            List<String> matches = repository.branches().stream()
+                    .filter(branch -> branch != null && branch.toLowerCase().contains(query))
+                    .limit(5)
+                    .toList();
+            return ResponseEntity.ok(matches);
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/documentation/analysis/reset")
+    public String resetAnalysis(HttpSession session) {
+        session.removeAttribute(ANALYSIS_SESSION_KEY);
+        return "redirect:/documentation/new";
+    }
+
     @PostMapping("/documentation/analyze")
     public String analyze(@RequestParam String jiraKey, @RequestParam String jiraSummary, @RequestParam String jiraStatus,
                           @RequestParam String repositoryKey, @RequestParam String baseBranch,
@@ -58,6 +82,7 @@ public class AnalysisController {
         boolean sameAnalysis = previous != null && previous.matches(jiraKey, repositoryKey, baseBranch, requirementBranch);
         if (sameAnalysis) {
             addAnalysis(model, previous.data());
+            addActiveAnalysis(model, previous);
             addGenerationState(model, previous, documentType);
             log.info("Análisis documentación: reutilizado. jira={} repositorio={} ramaOrigen={} ramaRequerimiento={} tipo={}",
                     jiraKey, repositoryKey, baseBranch, requirementBranch, normalizeDocumentType(documentType));
@@ -71,6 +96,7 @@ public class AnalysisController {
                     false, false);
             session.setAttribute(ANALYSIS_SESSION_KEY, snapshot);
             addAnalysis(model, data);
+            addActiveAnalysis(model, snapshot);
             addGenerationState(model, snapshot, documentType);
             log.info("Análisis documentación: completado. jira={} archivos={} alineada={} commitsOrigenNoIncorporados={} tiempoMs={}",
                     jiraKey, data.context().changedFiles().size(), data.context().alignedWithBase(),
@@ -93,6 +119,7 @@ public class AnalysisController {
         try {
             if (!configuration.aiConfigured()) throw new IllegalStateException("Configura y valida el proveedor de IA antes de generar documentos.");
             AnalysisData data = resolveAnalysis(session, jiraKey, repositoryKey, baseBranch, requirementBranch); addAnalysis(model, data);
+            addActiveAnalysis(model, currentSnapshot(session));
             JiraIssueService.JiraIssueContext issue = jira.getContext(configuration.jira(), jiraKey);
             String generated = documentation.generate(documentType, issue, data.context(), data.repository().name());
             model.addAttribute("generatedDocument", generated);
@@ -162,6 +189,18 @@ public class AnalysisController {
         model.addAttribute("generatedDpc", generatedDpc);
         model.addAttribute("selectedDocumentAlreadyGenerated",
                 "DPC".equals(normalizeDocumentType(documentType)) ? generatedDpc : generatedDt);
+    }
+
+    private void addActiveAnalysis(Model model, AnalysisSnapshot snapshot) {
+        boolean active = snapshot != null;
+        model.addAttribute("analysisActive", active);
+        if (active) {
+            model.addAttribute("activeJiraKey", snapshot.jiraKey());
+            model.addAttribute("activeRepositoryName", snapshot.data().repository().name());
+            model.addAttribute("activeRepositorySource", snapshot.data().repository().source());
+            model.addAttribute("activeBaseBranch", snapshot.baseBranch());
+            model.addAttribute("activeRequirementBranch", snapshot.requirementBranch());
+        }
     }
 
     private void addCommon(Model model) {
