@@ -63,7 +63,7 @@ public class ConfluencePublicationService {
         requireConfigured(config, spaceId);
         if (blank(parentId)) throw new IllegalArgumentException("Selecciona la página padre de Confluence.");
         try {
-            ExistingPage existing = findExistingChild(config, parentId, title);
+            ExistingPage existing = findExistingPage(config, spaceId, title);
             if (existing != null) {
                 return new PublicationResult(false, true, existing.id(), title, spaceKey, spaceName,
                         parentId, parentTitle, pageUrl(config, existing.id()));
@@ -92,20 +92,16 @@ public class ConfluencePublicationService {
         }
     }
 
-    private ExistingPage findExistingChild(IntegrationConfig config, String parentId, String title) throws Exception {
-        String path = "/api/v2/pages/" + parentId + "/children?limit=" + PAGE_LIMIT;
-        while (path != null) {
-            HttpResponse<String> response = atlassian.confluenceGet(config, path);
-            ensureSuccess(response, "validar documentos existentes");
-            JsonNode root = objectMapper.readTree(response.body());
-            JsonNode results = root.path("results");
-            if (results.isArray()) {
-                for (JsonNode page : results) {
-                    if (title.equalsIgnoreCase(page.path("title").asText("")))
-                        return new ExistingPage(page.path("id").asText(""));
-                }
+    private ExistingPage findExistingPage(IntegrationConfig config, String spaceId, String title) throws Exception {
+        String path = "/api/v2/pages?space-id=" + spaceId + "&title=" + java.net.URLEncoder.encode(title, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20") + "&limit=25";
+        HttpResponse<String> response = atlassian.confluenceGet(config, path);
+        ensureSuccess(response, "validar documentos existentes");
+        JsonNode results = objectMapper.readTree(response.body()).path("results");
+        if (results.isArray()) {
+            for (JsonNode page : results) {
+                if (title.equalsIgnoreCase(page.path("title").asText("")))
+                    return new ExistingPage(page.path("id").asText(""));
             }
-            path = nextPath(root);
         }
         return null;
     }
