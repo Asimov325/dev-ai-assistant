@@ -48,23 +48,6 @@ public class AnalysisController {
         catch (RuntimeException ex) { return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage())); }
     }
 
-    @GetMapping("/api/git/branches") @ResponseBody
-    public ResponseEntity<?> gitBranches(@RequestParam String repositoryKey, @RequestParam String q) {
-        try {
-            String query = q == null ? "" : q.trim().toLowerCase();
-            if (query.length() < 2) return ResponseEntity.ok(List.of());
-            ConfiguredGitRepository repository = configuration.repository(repositoryKey)
-                    .orElseThrow(() -> new IllegalArgumentException("Selecciona un repositorio configurado."));
-            List<String> matches = repository.branches().stream()
-                    .filter(branch -> branch != null && branch.toLowerCase().contains(query))
-                    .limit(5)
-                    .toList();
-            return ResponseEntity.ok(matches);
-        } catch (RuntimeException ex) {
-            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
-        }
-    }
-
     @PostMapping("/documentation/analysis/reset")
     public String resetAnalysis(HttpSession session) {
         session.removeAttribute(ANALYSIS_SESSION_KEY);
