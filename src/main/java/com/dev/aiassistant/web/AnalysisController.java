@@ -71,6 +71,7 @@ public class AnalysisController {
                     data.context().baseCommitsNotInRequirement(), System.currentTimeMillis() - start);
         } catch (RuntimeException ex) {
             session.removeAttribute(ANALYSIS_SESSION_KEY);
+            addGenerationState(model, null, documentType);
             model.addAttribute("analysisError", ex.getMessage());
             log.error("Análisis documentación: error. jira={} tiempoMs={} mensaje={}", jiraKey, System.currentTimeMillis() - start, ex.getMessage());
         }
