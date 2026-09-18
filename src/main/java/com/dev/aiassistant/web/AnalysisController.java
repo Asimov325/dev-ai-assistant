@@ -99,7 +99,7 @@ public class AnalysisController {
             session.removeAttribute(ANALYSIS_SESSION_KEY);
             addGenerationState(model, null, documentType);
             model.addAttribute("analysisError", ex.getMessage());
-            log.error("Análisis documentación: error. jira={} tiempoMs={} mensaje={}", jiraKey, System.currentTimeMillis() - start, ex.getMessage());
+            log.error("Análisis documentación: error. jira={} repositorio={} ramaOrigen={} ramaRequerimiento={} tipo={} tiempoMs={} mensaje={}", jiraKey, repositoryKey, baseBranch, requirementBranch, ex.getClass().getName(), System.currentTimeMillis() - start, ex.getMessage(), ex);
         }
         return "new-documentation";
     }
@@ -133,6 +133,7 @@ public class AnalysisController {
         } catch (RuntimeException ex) {
             addGenerationState(model, currentSnapshot(session), documentType);
             model.addAttribute("generationError", ex.getMessage());
+            log.error("Generación documentación: error. jira={} repositorio={} ramaOrigen={} ramaRequerimiento={} tipoDocumento={} tipo={} mensaje={}", jiraKey, repositoryKey, baseBranch, requirementBranch, normalizeDocumentType(documentType), ex.getClass().getName(), ex.getMessage(), ex);
         }
         return "new-documentation";
     }
@@ -196,6 +197,7 @@ public class AnalysisController {
             }
         } catch (RuntimeException ex) {
             model.addAttribute("publicationError", ex.getMessage());
+            log.error("Publicación Confluence: error. jira={} tipoDocumento={} space={} tipo={} mensaje={}", snapshot.jiraKey(), type, snapshot.confluenceSpaceKey(), ex.getClass().getName(), ex.getMessage(), ex);
         }
         return "new-documentation";
     }
