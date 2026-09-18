@@ -6,6 +6,8 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -16,6 +18,7 @@ import java.util.List;
 
 @Service
 public class RemoteGitSourceService {
+    private static final Logger log = LoggerFactory.getLogger(RemoteGitSourceService.class);
 
     private final JGitSourceService localGit;
 
@@ -27,6 +30,8 @@ public class RemoteGitSourceService {
         if (remoteUrl == null || remoteUrl.isBlank()) {
             throw new IllegalArgumentException("La URL del repositorio remoto es obligatoria.");
         }
+        long start = System.currentTimeMillis();
+        log.info("Git REMOTE: inicio inspección. repositorio={} usuarioInformado={}", safeRepository(remoteUrl), username != null && !username.isBlank());
         try {
             var refs = Git.lsRemoteRepository()
                     .setRemote(remoteUrl.trim())
@@ -43,8 +48,11 @@ public class RemoteGitSourceService {
             if (branches.isEmpty()) {
                 throw new IllegalStateException("El repositorio respondió, pero no se encontraron ramas accesibles.");
             }
+            log.info("Git REMOTE: inspección completada. repositorio={} ramas={} tiempoMs={}", repositoryName(remoteUrl), branches.size(), System.currentTimeMillis() - start);
             return new GitSourceInfo(remoteUrl.trim(), repositoryName(remoteUrl), branches);
         } catch (Exception ex) {
+            log.error("Git REMOTE: error inspeccionando repositorio. repositorio={} tipo={} mensaje={} tiempoMs={}",
+                    safeRepository(remoteUrl), ex.getClass().getName(), safeMessage(ex), System.currentTimeMillis() - start, ex);
             if (ex instanceof IllegalStateException state) throw state;
             throw new IllegalStateException("No fue posible acceder al repositorio remoto. Revisa URL, credenciales y permisos de lectura.", ex);
         }
@@ -52,6 +60,8 @@ public class RemoteGitSourceService {
 
     public GitChangeContext compare(String remoteUrl, String username, String token, String baseBranch, String requirementBranch) {
         Path temp = null;
+        long start = System.currentTimeMillis();
+        log.info("Git REMOTE: inicio comparación. repositorio={} ramaOrigen={} ramaRequerimiento={}", safeRepository(remoteUrl), baseBranch, requirementBranch);
         try {
             temp = Files.createTempDirectory("dev-ai-analysis-");
             var auth = credentials(username, token);
@@ -60,8 +70,13 @@ public class RemoteGitSourceService {
                 fetchBranch(git, auth, baseBranch);
                 if (!baseBranch.equals(requirementBranch)) fetchBranch(git, auth, requirementBranch);
             }
-            return localGit.compare(temp.toString(), baseBranch, requirementBranch);
+            GitChangeContext result = localGit.compare(temp.toString(), baseBranch, requirementBranch);
+            log.info("Git REMOTE: comparación completada. repositorio={} ramaOrigen={} ramaRequerimiento={} archivos={} tiempoMs={}",
+                    safeRepository(remoteUrl), baseBranch, requirementBranch, result.changedFiles().size(), System.currentTimeMillis() - start);
+            return result;
         } catch (Exception ex) {
+            log.error("Git REMOTE: error comparando ramas. repositorio={} ramaOrigen={} ramaRequerimiento={} tipo={} mensaje={} tiempoMs={}",
+                    safeRepository(remoteUrl), baseBranch, requirementBranch, ex.getClass().getName(), safeMessage(ex), System.currentTimeMillis() - start, ex);
             throw new IllegalStateException("No fue posible comparar las ramas remotas. Revisa ramas, credenciales y conectividad.", ex);
         } finally {
             deleteQuietly(temp);
@@ -89,6 +104,17 @@ public class RemoteGitSourceService {
 
     private UsernamePasswordCredentialsProvider credentials(String username, String token) {
         return new UsernamePasswordCredentialsProvider(username == null ? "" : username.trim(), token == null ? "" : token);
+    }
+
+    private String safeRepository(String url) {
+        if (url == null || url.isBlank()) return "(vacío)";
+        try { return repositoryName(url); } catch (RuntimeException ignored) { return "(URL no válida)"; }
+    }
+
+    private String safeMessage(Throwable ex) {
+        String message = ex.getMessage();
+        if (message == null || message.isBlank()) return "(sin mensaje)";
+        return message.replaceAll("(?i)(https?://)[^/@\\s]+@", "$1***@");
     }
 
     private String repositoryName(String url) {
