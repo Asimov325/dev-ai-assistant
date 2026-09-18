@@ -1,6 +1,8 @@
 package com.dev.aiassistant.integration;
 
 import com.dev.aiassistant.config.model.IntegrationConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -13,6 +15,7 @@ import java.util.Base64;
 
 @Service
 public class AtlassianConnectionService {
+    private static final Logger log = LoggerFactory.getLogger(AtlassianConnectionService.class);
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
     public ConnectionResult testJira(IntegrationConfig config) {
@@ -29,8 +32,10 @@ public class AtlassianConnectionService {
             return httpError("Confluence", response.statusCode());
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
+            log.error("Confluence: prueba de conexión interrumpida. tipo={} mensaje={}", ex.getClass().getName(), safeMessage(ex), ex);
             return ConnectionResult.error("Confluence: prueba interrumpida.");
         } catch (Exception ex) {
+            log.error("Confluence: error en prueba de conexión. tipo={} mensaje={}", ex.getClass().getName(), safeMessage(ex), ex);
             return ConnectionResult.error("Confluence: no fue posible establecer conexión. Revisa URL, red/VPN y configuración.");
         }
     }
@@ -67,8 +72,10 @@ public class AtlassianConnectionService {
             return httpError(system, response.statusCode());
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
+            log.error("{}: prueba de conexión interrumpida. tipo={} mensaje={}", system, ex.getClass().getName(), safeMessage(ex), ex);
             return ConnectionResult.error(system + ": prueba interrumpida.");
         } catch (Exception ex) {
+            log.error("{}: error en prueba de conexión. tipo={} mensaje={}", system, ex.getClass().getName(), safeMessage(ex), ex);
             return ConnectionResult.error(system + ": no fue posible establecer conexión. Revisa URL, red/VPN y configuración.");
         }
     }
@@ -86,6 +93,7 @@ public class AtlassianConnectionService {
         if (wiki >= 0) return url.substring(0, wiki) + "/wiki";
         return url + "/wiki";
     }
+    private String safeMessage(Throwable ex) { String value=ex.getMessage(); return value==null||value.isBlank()?"(sin mensaje)":value.replaceAll("(?i)(https?://)[^/@\\s]+@","$1***@"); }
     private boolean blank(String value) { return value == null || value.isBlank(); }
     private String encodePath(String value) { return value.trim().replace(" ", "%20"); }
 }
