@@ -9,6 +9,7 @@ import com.dev.aiassistant.git.model.GitChangedFile;
 import com.dev.aiassistant.git.service.GitSourceService;
 import com.dev.aiassistant.git.service.RemoteGitSourceService;
 import com.dev.aiassistant.integration.JiraIssueService;
+import com.dev.aiassistant.integration.ConfluenceSpaceService;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,21 +31,28 @@ public class AnalysisController {
     private static final String ANALYSIS_SESSION_KEY = "documentationAnalysis";
     private final AppConfigurationService configuration;
     private final JiraIssueService jira;
+    private final ConfluenceSpaceService confluenceSpaces;
     private final GitSourceService localGit;
     private final RemoteGitSourceService remoteGit;
     private final DocumentationGenerationService documentation;
     private final MarkdownRenderingService markdown;
 
-    public AnalysisController(AppConfigurationService configuration, JiraIssueService jira, GitSourceService localGit,
+    public AnalysisController(AppConfigurationService configuration, JiraIssueService jira, ConfluenceSpaceService confluenceSpaces, GitSourceService localGit,
                               RemoteGitSourceService remoteGit, DocumentationGenerationService documentation,
                               MarkdownRenderingService markdown) {
-        this.configuration = configuration; this.jira = jira; this.localGit = localGit; this.remoteGit = remoteGit;
+        this.configuration = configuration; this.jira = jira; this.confluenceSpaces = confluenceSpaces; this.localGit = localGit; this.remoteGit = remoteGit;
         this.documentation = documentation; this.markdown = markdown;
     }
 
     @GetMapping("/api/jira/issues") @ResponseBody
     public ResponseEntity<?> jiraIssues(@RequestParam String q) {
         try { return ResponseEntity.ok(jira.search(configuration.jira(), q)); }
+        catch (RuntimeException ex) { return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage())); }
+    }
+
+    @GetMapping("/api/confluence/spaces") @ResponseBody
+    public ResponseEntity<?> confluenceSpaces(@RequestParam String q) {
+        try { return ResponseEntity.ok(confluenceSpaces.search(configuration.confluence(), q)); }
         catch (RuntimeException ex) { return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage())); }
     }
 
