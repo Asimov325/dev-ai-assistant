@@ -4,7 +4,6 @@ import com.dev.aiassistant.config.model.IntegrationConfig;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
-import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -78,5 +77,4 @@ public class AtlassianConnectionService {
     }
     private boolean blank(String value) { return value == null || value.isBlank(); }
     private String encodePath(String value) { return value.trim().replace(" ", "%20"); }
-    private String escapeJson(String value) { return value.replace("\\", "\\\\").replace("\"", "\\\""); }
 }
