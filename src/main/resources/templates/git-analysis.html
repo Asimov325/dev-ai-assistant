@@ -1,2 +1,158 @@
 <!DOCTYPE html>
-<html lang="es" xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Validación técnica</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"><style>body{overflow-x:hidden}.git-table{width:100%;table-layout:fixed}.git-table td,.git-table th{overflow:hidden}.file-path{overflow-wrap:anywhere;word-break:break-word}.diff-cell{max-width:0;padding:.75rem!important}.diff-container{width:100%;max-width:100%;max-height:420px;overflow:auto}.diff-container pre{width:max-content;min-width:100%;max-width:none;margin:0;white-space:pre}</style></head><body class="bg-light"><nav class="navbar navbar-dark bg-dark mb-4"><div class="container"><span class="navbar-brand">Development AI Assistant · Validación técnica</span><a href="/" class="btn btn-sm btn-outline-light">Volver al MVP</a></div></nav><main class="container pb-5"><div class="alert alert-warning">Herramienta interna de apoyo. Esta pantalla no forma parte del flujo funcional del MVP.</div><div th:if="${error}" class="alert alert-danger" th:text="${error}"></div><div th:if="${gitStateWarning}" class="alert alert-warning" th:text="${gitStateWarning}"></div><section class="card shadow-sm mb-4"><div class="card-body"><h1 class="h4 mb-3">Validación Git</h1><form method="post" th:action="@{/git/inspect}" class="row g-3 align-items-end"><div class="col-lg-9"><label class="form-label">Ruta completa del repositorio</label><input name="sourcePath" class="form-control" th:value="${sourcePath}" required></div><div class="col-lg-3 d-grid"><button class="btn btn-primary">Analizar repositorio</button></div></form></div></section><section th:if="${sourceInfo}" class="card shadow-sm mb-4"><div class="card-body"><p><strong>Repositorio:</strong> <span th:text="${sourceInfo.sourceName}"></span></p><form method="post" th:action="@{/git/compare}" class="row g-3 align-items-end"><input type="hidden" name="sourcePath" th:value="${sourceInfo.sourcePath}"><div class="col-md-5"><label class="form-label">Rama base</label><select name="baseBranch" class="form-select" required><option value="">Seleccionar...</option><option th:each="branch:${sourceInfo.branches}" th:value="${branch}" th:text="${branch}" th:selected="${branch==baseBranch}"></option></select></div><div class="col-md-5"><label class="form-label">Rama del requerimiento</label><select name="requirementBranch" class="form-select" required><option value="">Seleccionar...</option><option th:each="branch:${sourceInfo.branches}" th:value="${branch}" th:text="${branch}" th:selected="${branch==requirementBranch}"></option></select></div><div class="col-md-2 d-grid"><button class="btn btn-success">Comparar</button></div></form></div></section><section th:if="${changeContext}" class="card shadow-sm mb-4"><div class="card-body"><h2 class="h5">Resultado</h2><p><strong>Comparación:</strong> <span th:text="${changeContext.baseBranch}"></span> → <span th:text="${changeContext.requirementBranch}"></span></p><div class="table-responsive"><table class="table git-table"><thead><tr><th style="width:12%">Estado</th><th style="width:48%">Archivo</th><th style="width:10%">+</th><th style="width:10%">-</th><th style="width:20%">Detalle</th></tr></thead><tbody><th:block th:each="file,status:${changeContext.changedFiles}"><tr><td th:text="${file.changeType}"></td><td class="file-path" th:text="${file.newPath!=null?file.newPath:file.oldPath}"></td><td th:text="${file.linesAdded}"></td><td th:text="${file.linesDeleted}"></td><td><button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" th:attr="data-bs-target=${'#diff-'+status.index}">Ver diff</button></td></tr><tr class="collapse" th:id="${'diff-'+status.index}"><td colspan="5" class="diff-cell"><div class="diff-container bg-dark rounded"><pre class="text-light p-3"><code th:text="${file.diff}"></code></pre></div></td></tr></th:block></tbody></table></div></div></section><section class="card shadow-sm"><div class="card-body"><h2 class="h5">Validación del proveedor de IA</h2><p class="text-secondary">Utiliza únicamente contenido controlado y no sensible.</p><form method="post" th:action="@{/ai/test}"><input th:if="${sourcePath}" type="hidden" name="sourcePath" th:value="${sourcePath}"><input th:if="${baseBranch}" type="hidden" name="baseBranch" th:value="${baseBranch}"><input th:if="${requirementBranch}" type="hidden" name="requirementBranch" th:value="${requirementBranch}"><textarea name="prompt" class="form-control mb-3" rows="3" required th:text="${aiPrompt}" placeholder="Responde únicamente: conexión IA correcta"></textarea><button class="btn btn-outline-primary">Probar IA</button></form><div th:if="${aiError}" class="alert alert-danger mt-3 mb-0"><strong>No se pudo completar la prueba de IA.</strong><br><span th:text="${aiError}"></span></div><div th:if="${aiResponse}" class="alert alert-success mt-3 mb-0"><strong>Proveedor: </strong><span th:text="${aiProvider}"></span><hr><pre class="mb-0 text-wrap" th:text="${aiResponse}"></pre></div></div></section></main><script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script></body></html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Validación técnica</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>body {
+        overflow-x: hidden
+    }
+
+    .git-table {
+        width: 100%;
+        table-layout: fixed
+    }
+
+    .git-table td, .git-table th {
+        overflow: hidden
+    }
+
+    .file-path {
+        overflow-wrap: anywhere;
+        word-break: break-word
+    }
+
+    .diff-cell {
+        max-width: 0;
+        padding: .75rem !important
+    }
+
+    .diff-container {
+        width: 100%;
+        max-width: 100%;
+        max-height: 420px;
+        overflow: auto
+    }
+
+    .diff-container pre {
+        width: max-content;
+        min-width: 100%;
+        max-width: none;
+        margin: 0;
+        white-space: pre
+    }</style>
+</head>
+<body class="bg-light">
+<nav class="navbar navbar-dark bg-dark mb-4">
+    <div class="container"><span class="navbar-brand">Development AI Assistant · Validación técnica</span><a href="/"
+                                                                                                             class="btn btn-sm btn-outline-light">Volver
+        al MVP</a></div>
+</nav>
+<main class="container pb-5">
+    <div class="alert alert-warning">Herramienta interna de apoyo. Esta pantalla no forma parte del flujo funcional del
+        MVP.
+    </div>
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+    <div th:if="${gitStateWarning}" class="alert alert-warning" th:text="${gitStateWarning}"></div>
+    <section class="card shadow-sm mb-4">
+        <div class="card-body"><h1 class="h4 mb-3">Validación Git</h1>
+            <form method="post" th:action="@{/git/inspect}" class="row g-3 align-items-end">
+                <div class="col-lg-9"><label class="form-label">Ruta completa del repositorio</label><input
+                        name="sourcePath" class="form-control" th:value="${sourcePath}" required></div>
+                <div class="col-lg-3 d-grid">
+                    <button class="btn btn-primary">Analizar repositorio</button>
+                </div>
+            </form>
+        </div>
+    </section>
+    <section th:if="${sourceInfo}" class="card shadow-sm mb-4">
+        <div class="card-body"><p><strong>Repositorio:</strong> <span th:text="${sourceInfo.sourceName}"></span></p>
+            <form method="post" th:action="@{/git/compare}" class="row g-3 align-items-end"><input type="hidden"
+                                                                                                   name="sourcePath"
+                                                                                                   th:value="${sourceInfo.sourcePath}">
+                <div class="col-md-5"><label class="form-label">Rama base</label><select name="baseBranch"
+                                                                                         class="form-select" required>
+                    <option value="">Seleccionar...</option>
+                    <option th:each="branch:${sourceInfo.branches}" th:value="${branch}" th:text="${branch}"
+                            th:selected="${branch==baseBranch}"></option>
+                </select></div>
+                <div class="col-md-5"><label class="form-label">Rama del requerimiento</label><select
+                        name="requirementBranch" class="form-select" required>
+                    <option value="">Seleccionar...</option>
+                    <option th:each="branch:${sourceInfo.branches}" th:value="${branch}" th:text="${branch}"
+                            th:selected="${branch==requirementBranch}"></option>
+                </select></div>
+                <div class="col-md-2 d-grid">
+                    <button class="btn btn-success">Comparar</button>
+                </div>
+            </form>
+        </div>
+    </section>
+    <section th:if="${changeContext}" class="card shadow-sm mb-4">
+        <div class="card-body"><h2 class="h5">Resultado</h2>
+            <p><strong>Comparación:</strong> <span th:text="${changeContext.baseBranch}"></span> → <span
+                    th:text="${changeContext.requirementBranch}"></span></p>
+            <div class="table-responsive">
+                <table class="table git-table">
+                    <thead>
+                    <tr>
+                        <th style="width:12%">Estado</th>
+                        <th style="width:48%">Archivo</th>
+                        <th style="width:10%">+</th>
+                        <th style="width:10%">-</th>
+                        <th style="width:20%">Detalle</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <th:block th:each="file,status:${changeContext.changedFiles}">
+                        <tr>
+                            <td th:text="${file.changeType}"></td>
+                            <td class="file-path" th:text="${file.newPath!=null?file.newPath:file.oldPath}"></td>
+                            <td th:text="${file.linesAdded}"></td>
+                            <td th:text="${file.linesDeleted}"></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse"
+                                        th:attr="data-bs-target=${'#diff-'+status.index}">Ver diff
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="collapse" th:id="${'diff-'+status.index}">
+                            <td colspan="5" class="diff-cell">
+                                <div class="diff-container bg-dark rounded">
+                                    <pre class="text-light p-3"><code th:text="${file.diff}"></code></pre>
+                                </div>
+                            </td>
+                        </tr>
+                    </th:block>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+    <section class="card shadow-sm">
+        <div class="card-body"><h2 class="h5">Validación del proveedor de IA</h2>
+            <p class="text-secondary">Utiliza únicamente contenido controlado y no sensible.</p>
+            <form method="post" th:action="@{/ai/test}"><input th:if="${sourcePath}" type="hidden" name="sourcePath"
+                                                               th:value="${sourcePath}"><input th:if="${baseBranch}"
+                                                                                               type="hidden"
+                                                                                               name="baseBranch"
+                                                                                               th:value="${baseBranch}"><input
+                    th:if="${requirementBranch}" type="hidden" name="requirementBranch" th:value="${requirementBranch}"><textarea
+                    name="prompt" class="form-control mb-3" rows="3" required th:text="${aiPrompt}"
+                    placeholder="Responde únicamente: conexión IA correcta"></textarea>
+                <button class="btn btn-outline-primary">Probar IA</button>
+            </form>
+            <div th:if="${aiError}" class="alert alert-danger mt-3 mb-0"><strong>No se pudo completar la prueba de
+                IA.</strong><br><span th:text="${aiError}"></span></div>
+            <div th:if="${aiResponse}" class="alert alert-success mt-3 mb-0"><strong>Proveedor: </strong><span
+                    th:text="${aiProvider}"></span>
+                <hr>
+                <pre class="mb-0 text-wrap" th:text="${aiResponse}"></pre>
+            </div>
+        </div>
+    </section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

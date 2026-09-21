@@ -19,7 +19,8 @@ public class AtlassianConnectionService {
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
     public ConnectionResult testJira(IntegrationConfig config) {
-        if (!config.complete() || blank(config.context())) return ConnectionResult.error("Completa URL, proyecto, usuario y token.");
+        if (!config.complete() || blank(config.context()))
+            return ConnectionResult.error("Completa URL, proyecto, usuario y token.");
         return test(config, "/rest/api/3/project/" + encodePath(config.context()), "Jira", "Proyecto " + config.context() + " accesible.");
     }
 
@@ -68,7 +69,8 @@ public class AtlassianConnectionService {
                     .timeout(Duration.ofSeconds(15)).header("Accept", "application/json")
                     .header("Authorization", "Basic " + credentials).GET().build();
             HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());
-            if (response.statusCode() >= 200 && response.statusCode() < 300) return ConnectionResult.ok("Conexión con " + system + " correcta. " + successDetail);
+            if (response.statusCode() >= 200 && response.statusCode() < 300)
+                return ConnectionResult.ok("Conexión con " + system + " correcta. " + successDetail);
             return httpError(system, response.statusCode());
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
@@ -82,7 +84,8 @@ public class AtlassianConnectionService {
 
     private ConnectionResult httpError(String system, int status) {
         if (status == 401) return ConnectionResult.error(system + ": credenciales inválidas (401).");
-        if (status == 403) return ConnectionResult.error(system + ": conexión realizada, pero el usuario no tiene permisos (403).");
+        if (status == 403)
+            return ConnectionResult.error(system + ": conexión realizada, pero el usuario no tiene permisos (403).");
         if (status == 404) return ConnectionResult.error(system + ": recurso configurado no encontrado (404).");
         return ConnectionResult.error(system + ": respuesta HTTP " + status + ".");
     }
@@ -93,7 +96,17 @@ public class AtlassianConnectionService {
         if (wiki >= 0) return url.substring(0, wiki) + "/wiki";
         return url + "/wiki";
     }
-    private String safeMessage(Throwable ex) { String value=ex.getMessage(); return value==null||value.isBlank()?"(sin mensaje)":value.replaceAll("(?i)(https?://)[^/@\\s]+@","$1***@"); }
-    private boolean blank(String value) { return value == null || value.isBlank(); }
-    private String encodePath(String value) { return value.trim().replace(" ", "%20"); }
+
+    private String safeMessage(Throwable ex) {
+        String value = ex.getMessage();
+        return value == null || value.isBlank() ? "(sin mensaje)" : value.replaceAll("(?i)(https?://)[^/@\\s]+@", "$1***@");
+    }
+
+    private boolean blank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private String encodePath(String value) {
+        return value.trim().replace(" ", "%20");
+    }
 }

@@ -97,9 +97,13 @@ public class RemoteGitSourceService {
         if (root == null || !Files.exists(root)) return;
         try (var paths = Files.walk(root)) {
             paths.sorted(Comparator.reverseOrder()).forEach(path -> {
-                try { Files.deleteIfExists(path); } catch (IOException ignored) { }
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException ignored) {
+                }
             });
-        } catch (IOException ignored) { }
+        } catch (IOException ignored) {
+        }
     }
 
     private UsernamePasswordCredentialsProvider credentials(String username, String token) {
@@ -108,7 +112,11 @@ public class RemoteGitSourceService {
 
     private String safeRepository(String url) {
         if (url == null || url.isBlank()) return "(vacío)";
-        try { return repositoryName(url); } catch (RuntimeException ignored) { return "(URL no válida)"; }
+        try {
+            return repositoryName(url);
+        } catch (RuntimeException ignored) {
+            return "(URL no válida)";
+        }
     }
 
     private String safeMessage(Throwable ex) {

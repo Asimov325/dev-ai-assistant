@@ -58,7 +58,8 @@ public class JGitSourceService implements GitSourceService {
             ObjectId base = resolveBranch(repository, baseBranch);
             ObjectId requirement = resolveBranch(repository, requirementBranch);
             ObjectId mergeBase = findMergeBase(repository, base, requirement);
-            if (mergeBase == null) throw new IllegalStateException("No se encontró un ancestro común entre las ramas seleccionadas. No es posible construir evidencia confiable del requerimiento.");
+            if (mergeBase == null)
+                throw new IllegalStateException("No se encontró un ancestro común entre las ramas seleccionadas. No es posible construir evidencia confiable del requerimiento.");
 
             List<DiffEntry> entries = git.diff().setOldTree(prepareTreeParser(repository, mergeBase))
                     .setNewTree(prepareTreeParser(repository, requirement)).setShowNameAndStatusOnly(false).call();
@@ -81,33 +82,51 @@ public class JGitSourceService implements GitSourceService {
 
     private ObjectId findMergeBase(Repository repository, ObjectId base, ObjectId requirement) throws IOException {
         try (RevWalk walk = new RevWalk(repository)) {
-            walk.setRevFilter(RevFilter.MERGE_BASE); walk.markStart(walk.parseCommit(base)); walk.markStart(walk.parseCommit(requirement));
-            RevCommit common = walk.next(); return common == null ? null : common.getId();
+            walk.setRevFilter(RevFilter.MERGE_BASE);
+            walk.markStart(walk.parseCommit(base));
+            walk.markStart(walk.parseCommit(requirement));
+            RevCommit common = walk.next();
+            return common == null ? null : common.getId();
         }
     }
 
     private int countCommitsNotReachableFrom(Repository repository, ObjectId start, ObjectId exclude) throws IOException {
         try (RevWalk walk = new RevWalk(repository)) {
-            walk.markStart(walk.parseCommit(start)); walk.markUninteresting(walk.parseCommit(exclude));
-            int count = 0; for (RevCommit ignored : walk) count++; return count;
+            walk.markStart(walk.parseCommit(start));
+            walk.markUninteresting(walk.parseCommit(exclude));
+            int count = 0;
+            for (RevCommit ignored : walk) count++;
+            return count;
         }
     }
 
     private AbstractTreeIterator prepareTreeParser(Repository repository, ObjectId objectId) throws IOException {
         try (RevWalk walk = new RevWalk(repository); ObjectReader reader = repository.newObjectReader()) {
-            var commit = walk.parseCommit(objectId); var tree = walk.parseTree(commit.getTree().getId());
-            CanonicalTreeParser parser = new CanonicalTreeParser(); parser.reset(reader, tree.getId()); return parser;
+            var commit = walk.parseCommit(objectId);
+            var tree = walk.parseTree(commit.getTree().getId());
+            CanonicalTreeParser parser = new CanonicalTreeParser();
+            parser.reset(reader, tree.getId());
+            return parser;
         }
     }
 
     private GitChangedFile toChangedFile(Repository repository, DiffEntry entry) throws IOException {
         int linesAdded = 0, linesDeleted = 0;
         try (DiffFormatter formatter = new DiffFormatter(DisabledOutputStream.INSTANCE)) {
-            formatter.setRepository(repository); formatter.setDetectRenames(true); FileHeader header = formatter.toFileHeader(entry);
-            for (Edit edit : header.toEditList()) { linesDeleted += edit.getEndA() - edit.getBeginA(); linesAdded += edit.getEndB() - edit.getBeginB(); }
+            formatter.setRepository(repository);
+            formatter.setDetectRenames(true);
+            FileHeader header = formatter.toFileHeader(entry);
+            for (Edit edit : header.toEditList()) {
+                linesDeleted += edit.getEndA() - edit.getBeginA();
+                linesAdded += edit.getEndB() - edit.getBeginB();
+            }
         }
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        try (DiffFormatter formatter = new DiffFormatter(output)) { formatter.setRepository(repository); formatter.setDetectRenames(true); formatter.format(entry); }
+        try (DiffFormatter formatter = new DiffFormatter(output)) {
+            formatter.setRepository(repository);
+            formatter.setDetectRenames(true);
+            formatter.format(entry);
+        }
         String relevantPath = entry.getNewPath().equals(DiffEntry.DEV_NULL) ? entry.getOldPath() : entry.getNewPath();
         return new GitChangedFile(entry.getChangeType().name(), normalizeDiffPath(entry.getOldPath()), normalizeDiffPath(entry.getNewPath()),
                 extractExtension(relevantPath), linesAdded, linesDeleted, output.toString(StandardCharsets.UTF_8));
@@ -116,25 +135,38 @@ public class JGitSourceService implements GitSourceService {
     private ObjectId resolveBranch(Repository repository, String branchName) throws IOException {
         ObjectId objectId = repository.resolve(branchName + "^{commit}");
         if (objectId == null) objectId = repository.resolve("refs/remotes/origin/" + branchName + "^{commit}");
-        if (objectId == null) throw new IllegalArgumentException("Git branch was not found: " + branchName); return objectId;
+        if (objectId == null) throw new IllegalArgumentException("Git branch was not found: " + branchName);
+        return objectId;
     }
 
     private Repository openRepository(Path repositoryPath) throws IOException {
         File gitDirectory = new File(repositoryPath.toFile(), ".git");
-        if (!gitDirectory.isDirectory()) throw new IllegalArgumentException("The selected path is not a Git repository: " + repositoryPath);
+        if (!gitDirectory.isDirectory())
+            throw new IllegalArgumentException("The selected path is not a Git repository: " + repositoryPath);
         return new FileRepositoryBuilder().setGitDir(gitDirectory).readEnvironment().build();
     }
 
     private Path validatePath(String sourcePath) {
-        if (sourcePath == null || sourcePath.isBlank()) throw new IllegalArgumentException("Git repository path is required.");
+        if (sourcePath == null || sourcePath.isBlank())
+            throw new IllegalArgumentException("Git repository path is required.");
         Path path = Path.of(sourcePath).toAbsolutePath().normalize();
-        if (!Files.isDirectory(path)) throw new IllegalArgumentException("Git repository path does not exist or is not a directory: " + sourcePath); return path;
+        if (!Files.isDirectory(path))
+            throw new IllegalArgumentException("Git repository path does not exist or is not a directory: " + sourcePath);
+        return path;
     }
 
-    private void validateBranchName(String branchName, String label) { if (branchName == null || branchName.isBlank()) throw new IllegalArgumentException(label + " is required."); }
-    private String normalizeDiffPath(String path) { return DiffEntry.DEV_NULL.equals(path) ? null : path; }
+    private void validateBranchName(String branchName, String label) {
+        if (branchName == null || branchName.isBlank()) throw new IllegalArgumentException(label + " is required.");
+    }
+
+    private String normalizeDiffPath(String path) {
+        return DiffEntry.DEV_NULL.equals(path) ? null : path;
+    }
+
     private String extractExtension(String path) {
-        if (path == null || DiffEntry.DEV_NULL.equals(path)) return ""; String fileName = Path.of(path).getFileName().toString(); int dot = fileName.lastIndexOf('.');
+        if (path == null || DiffEntry.DEV_NULL.equals(path)) return "";
+        String fileName = Path.of(path).getFileName().toString();
+        int dot = fileName.lastIndexOf('.');
         return dot >= 0 ? fileName.substring(dot).toLowerCase() : "";
     }
 }

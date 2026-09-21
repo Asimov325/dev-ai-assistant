@@ -38,7 +38,9 @@ public class GeminiAiProvider implements AiProvider {
     }
 
     @Override
-    public String id() { return "gemini"; }
+    public String id() {
+        return "gemini";
+    }
 
     @Override
     public String modelId() {
@@ -53,7 +55,9 @@ public class GeminiAiProvider implements AiProvider {
         log.info("Gemini: credencial de ejecución actualizada; se invalidó la selección dinámica de modelos.");
     }
 
-    public boolean configured() { return !apiKey().isBlank(); }
+    public boolean configured() {
+        return !apiKey().isBlank();
+    }
 
     public String validateConnection() {
         String key = apiKey();
@@ -216,7 +220,9 @@ public class GeminiAiProvider implements AiProvider {
                 model, reason, requestRejected.size(), unavailableModels.size());
     }
 
-    private synchronized Set<String> unavailableSnapshot() { return new HashSet<>(unavailableModels); }
+    private synchronized Set<String> unavailableSnapshot() {
+        return new HashSet<>(unavailableModels);
+    }
 
     private void sleepBeforeRetry() {
         try {
@@ -239,7 +245,9 @@ public class GeminiAiProvider implements AiProvider {
         return new IllegalStateException("No fue posible validar Gemini (HTTP " + status + ").", ex);
     }
 
-    private String normalize(String value) { return value.startsWith("models/") ? value.substring("models/".length()) : value; }
+    private String normalize(String value) {
+        return value.startsWith("models/") ? value.substring("models/".length()) : value;
+    }
 
     private String apiKey() {
         String value = runtimeApiKey;
@@ -258,10 +266,21 @@ public class GeminiAiProvider implements AiProvider {
         return text;
     }
 
-    public record ModelList(List<ModelInfo> models) { }
-    public record ModelInfo(String name, List<String> supportedGenerationMethods) { }
-    public record GeminiResponse(List<Candidate> candidates) { }
-    public record Candidate(Content content) { }
-    public record Content(List<Part> parts) { }
-    public record Part(String text) { }
+    public record ModelList(List<ModelInfo> models) {
+    }
+
+    public record ModelInfo(String name, List<String> supportedGenerationMethods) {
+    }
+
+    public record GeminiResponse(List<Candidate> candidates) {
+    }
+
+    public record Candidate(Content content) {
+    }
+
+    public record Content(List<Part> parts) {
+    }
+
+    public record Part(String text) {
+    }
 }

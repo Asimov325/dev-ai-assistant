@@ -50,7 +50,8 @@ public class JiraIssueService {
 
     public JiraIssueContext getContext(IntegrationConfig config, String issueKey) {
         if (config == null || !config.complete()) throw new IllegalStateException("Jira no está configurado.");
-        if (issueKey == null || issueKey.isBlank()) throw new IllegalArgumentException("El requerimiento Jira es obligatorio.");
+        if (issueKey == null || issueKey.isBlank())
+            throw new IllegalArgumentException("El requerimiento Jira es obligatorio.");
         try {
             String key = URLEncoder.encode(issueKey.trim(), StandardCharsets.UTF_8);
             String url = config.url().replaceAll("/+$", "") + "/rest/api/3/issue/" + key
@@ -134,6 +135,9 @@ public class JiraIssueService {
         return node != null && node.isValueNode() && !node.isNull() ? node.asText("") : "";
     }
 
-    public record JiraIssueOption(String key, String summary, String status) { }
-    public record JiraIssueContext(String key, String summary, String status, String issueType, String description) { }
+    public record JiraIssueOption(String key, String summary, String status) {
+    }
+
+    public record JiraIssueContext(String key, String summary, String status, String issueType, String description) {
+    }
 }

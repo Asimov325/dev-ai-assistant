@@ -18,18 +18,99 @@ public class AppConfigurationService {
     private IntegrationConfig ai;
     private boolean confluenceShared;
 
-    public AppConfigurationService(LocalConfigurationStore store){this.store=store;}
-    @PostConstruct public synchronized void load(){repositories.clear();repositories.addAll(store.loadGit());jira=store.loadIntegration("jira");confluence=store.loadIntegration("confluence");ai=store.loadIntegration("ai");IntegrationConfig mode=store.loadIntegration("confluence-mode");confluenceShared=mode!=null&&"true".equalsIgnoreCase(mode.context());}
+    public AppConfigurationService(LocalConfigurationStore store) {
+        this.store = store;
+    }
 
-    public synchronized List<ConfiguredGitRepository> repositories(){return List.copyOf(repositories);}
-    public synchronized void saveRepository(ConfiguredGitRepository repository){repositories.removeIf(current->current.key().equals(repository.key()));repositories.add(repository);store.saveGit(repositories);}
-    public synchronized Optional<ConfiguredGitRepository> repository(String key){return repositories.stream().filter(repository->repository.key().equals(key)).findFirst();}
-    public synchronized void deleteRepository(String key){repositories.removeIf(repository->repository.key().equals(key));store.saveGit(repositories);}
+    @PostConstruct
+    public synchronized void load() {
+        repositories.clear();
+        repositories.addAll(store.loadGit());
+        jira = store.loadIntegration("jira");
+        confluence = store.loadIntegration("confluence");
+        ai = store.loadIntegration("ai");
+        IntegrationConfig mode = store.loadIntegration("confluence-mode");
+        confluenceShared = mode != null && "true".equalsIgnoreCase(mode.context());
+    }
 
-    public synchronized IntegrationConfig jira(){return jira;} public synchronized void saveJira(IntegrationConfig value){jira=value;store.saveIntegration("jira",value);} public synchronized void deleteJira(){jira=null;store.delete("jira");}
-    public synchronized IntegrationConfig confluence(){return confluence;} public synchronized boolean confluenceShared(){return confluenceShared;}
-    public synchronized void saveConfluence(IntegrationConfig value,boolean shared){confluence=value;confluenceShared=shared;store.saveIntegration("confluence",value);store.saveIntegration("confluence-mode",new IntegrationConfig("","","",String.valueOf(shared)));}
-    public synchronized void deleteConfluence(){confluence=null;confluenceShared=false;store.delete("confluence");store.delete("confluence-mode");}
-    public synchronized IntegrationConfig ai(){return ai;} public synchronized void saveAi(IntegrationConfig value){ai=value;store.saveIntegration("ai",value);} public synchronized void deleteAi(){ai=null;store.delete("ai");}
-    public synchronized boolean jiraConfigured(){return jira!=null&&jira.complete();} public synchronized boolean confluenceConfigured(){return confluence!=null&&confluence.complete();} public synchronized boolean aiConfigured(){return ai!=null&&ai.secret()!=null&&!ai.secret().isBlank();}
+    public synchronized List<ConfiguredGitRepository> repositories() {
+        return List.copyOf(repositories);
+    }
+
+    public synchronized void saveRepository(ConfiguredGitRepository repository) {
+        repositories.removeIf(current -> current.key().equals(repository.key()));
+        repositories.add(repository);
+        store.saveGit(repositories);
+    }
+
+    public synchronized Optional<ConfiguredGitRepository> repository(String key) {
+        return repositories.stream().filter(repository -> repository.key().equals(key)).findFirst();
+    }
+
+    public synchronized void deleteRepository(String key) {
+        repositories.removeIf(repository -> repository.key().equals(key));
+        store.saveGit(repositories);
+    }
+
+    public synchronized IntegrationConfig jira() {
+        return jira;
+    }
+
+    public synchronized void saveJira(IntegrationConfig value) {
+        jira = value;
+        store.saveIntegration("jira", value);
+    }
+
+    public synchronized void deleteJira() {
+        jira = null;
+        store.delete("jira");
+    }
+
+    public synchronized IntegrationConfig confluence() {
+        return confluence;
+    }
+
+    public synchronized boolean confluenceShared() {
+        return confluenceShared;
+    }
+
+    public synchronized void saveConfluence(IntegrationConfig value, boolean shared) {
+        confluence = value;
+        confluenceShared = shared;
+        store.saveIntegration("confluence", value);
+        store.saveIntegration("confluence-mode", new IntegrationConfig("", "", "", String.valueOf(shared)));
+    }
+
+    public synchronized void deleteConfluence() {
+        confluence = null;
+        confluenceShared = false;
+        store.delete("confluence");
+        store.delete("confluence-mode");
+    }
+
+    public synchronized IntegrationConfig ai() {
+        return ai;
+    }
+
+    public synchronized void saveAi(IntegrationConfig value) {
+        ai = value;
+        store.saveIntegration("ai", value);
+    }
+
+    public synchronized void deleteAi() {
+        ai = null;
+        store.delete("ai");
+    }
+
+    public synchronized boolean jiraConfigured() {
+        return jira != null && jira.complete();
+    }
+
+    public synchronized boolean confluenceConfigured() {
+        return confluence != null && confluence.complete();
+    }
+
+    public synchronized boolean aiConfigured() {
+        return ai != null && ai.secret() != null && !ai.secret().isBlank();
+    }
 }

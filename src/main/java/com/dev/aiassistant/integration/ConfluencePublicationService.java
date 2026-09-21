@@ -96,7 +96,8 @@ public class ConfluencePublicationService {
             ensureSuccess(response, "crear el documento");
             JsonNode page = objectMapper.readTree(response.body());
             String pageId = page.path("id").asText("");
-            if (pageId.isBlank()) throw new IllegalStateException("Confluence creó la página pero no devolvió su identificador.");
+            if (pageId.isBlank())
+                throw new IllegalStateException("Confluence creó la página pero no devolvió su identificador.");
             return new PublicationResult(true, false, pageId, title, spaceKey, spaceName,
                     parentId, parentTitle, pageUrl(config, pageId));
         } catch (InterruptedException ex) {
@@ -170,10 +171,18 @@ public class ConfluencePublicationService {
         return base + "/wiki/pages/viewpage.action?pageId=" + pageId;
     }
 
-    private boolean blank(String value) { return value == null || value.isBlank(); }
+    private boolean blank(String value) {
+        return value == null || value.isBlank();
+    }
 
-    private record ExistingPage(String id) { }
-    public record ParentPage(String id, String title, int score) { }
+    private record ExistingPage(String id) {
+    }
+
+    public record ParentPage(String id, String title, int score) {
+    }
+
     public record PublicationResult(boolean created, boolean alreadyExists, String pageId, String title,
-                                    String spaceKey, String spaceName, String parentId, String parentTitle, String url) { }
+                                    String spaceKey, String spaceName, String parentId, String parentTitle,
+                                    String url) {
+    }
 }

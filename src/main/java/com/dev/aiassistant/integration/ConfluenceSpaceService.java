@@ -71,5 +71,6 @@ public class ConfluenceSpaceService {
         return query == null ? path : path + "?" + query;
     }
 
-    public record SpaceOption(String id, String key, String name) { }
+    public record SpaceOption(String id, String key, String name) {
+    }
 }

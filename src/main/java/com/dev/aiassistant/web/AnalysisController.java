@@ -42,20 +42,34 @@ public class AnalysisController {
     public AnalysisController(AppConfigurationService configuration, JiraIssueService jira, ConfluenceSpaceService confluenceSpaces, ConfluencePublicationService confluencePublication, GitSourceService localGit,
                               RemoteGitSourceService remoteGit, DocumentationGenerationService documentation,
                               MarkdownRenderingService markdown) {
-        this.configuration = configuration; this.jira = jira; this.confluenceSpaces = confluenceSpaces; this.confluencePublication = confluencePublication; this.localGit = localGit; this.remoteGit = remoteGit;
-        this.documentation = documentation; this.markdown = markdown;
+        this.configuration = configuration;
+        this.jira = jira;
+        this.confluenceSpaces = confluenceSpaces;
+        this.confluencePublication = confluencePublication;
+        this.localGit = localGit;
+        this.remoteGit = remoteGit;
+        this.documentation = documentation;
+        this.markdown = markdown;
     }
 
-    @GetMapping("/api/jira/issues") @ResponseBody
+    @GetMapping("/api/jira/issues")
+    @ResponseBody
     public ResponseEntity<?> jiraIssues(@RequestParam String q) {
-        try { return ResponseEntity.ok(jira.search(configuration.jira(), q)); }
-        catch (RuntimeException ex) { return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage())); }
+        try {
+            return ResponseEntity.ok(jira.search(configuration.jira(), q));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        }
     }
 
-    @GetMapping("/api/confluence/spaces") @ResponseBody
+    @GetMapping("/api/confluence/spaces")
+    @ResponseBody
     public ResponseEntity<?> confluenceSpaces(@RequestParam String q) {
-        try { return ResponseEntity.ok(confluenceSpaces.search(configuration.confluence(), q)); }
-        catch (RuntimeException ex) { return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage())); }
+        try {
+            return ResponseEntity.ok(confluenceSpaces.search(configuration.confluence(), q));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        }
     }
 
     @PostMapping("/documentation/analysis/reset")
@@ -68,9 +82,10 @@ public class AnalysisController {
     public String analyze(@RequestParam String jiraKey, @RequestParam String jiraSummary, @RequestParam String jiraStatus,
                           @RequestParam String repositoryKey, @RequestParam String baseBranch,
                           @RequestParam String requirementBranch, @RequestParam(defaultValue = "DT") String documentType,
-                          @RequestParam(required=false) String confluenceSpaceId, @RequestParam(required=false) String confluenceSpaceKey,
-                          @RequestParam(required=false) String confluenceSpaceName, Model model, HttpSession session) {
-        addCommon(model); addSelection(model, jiraKey, jiraSummary, jiraStatus, repositoryKey, baseBranch, requirementBranch, documentType, confluenceSpaceId, confluenceSpaceKey, confluenceSpaceName);
+                          @RequestParam(required = false) String confluenceSpaceId, @RequestParam(required = false) String confluenceSpaceKey,
+                          @RequestParam(required = false) String confluenceSpaceName, Model model, HttpSession session) {
+        addCommon(model);
+        addSelection(model, jiraKey, jiraSummary, jiraStatus, repositoryKey, baseBranch, requirementBranch, documentType, confluenceSpaceId, confluenceSpaceKey, confluenceSpaceName);
         AnalysisSnapshot previous = currentSnapshot(session);
         boolean sameAnalysis = previous != null && previous.matches(jiraKey, repositoryKey, baseBranch, requirementBranch);
         if (sameAnalysis) {
@@ -108,12 +123,15 @@ public class AnalysisController {
     public String generate(@RequestParam String jiraKey, @RequestParam String jiraSummary, @RequestParam String jiraStatus,
                            @RequestParam String repositoryKey, @RequestParam String baseBranch,
                            @RequestParam String requirementBranch, @RequestParam(defaultValue = "DT") String documentType,
-                           @RequestParam(required=false) String confluenceSpaceId, @RequestParam(required=false) String confluenceSpaceKey,
-                           @RequestParam(required=false) String confluenceSpaceName, Model model, HttpSession session) {
-        addCommon(model); addSelection(model, jiraKey, jiraSummary, jiraStatus, repositoryKey, baseBranch, requirementBranch, documentType, confluenceSpaceId, confluenceSpaceKey, confluenceSpaceName);
+                           @RequestParam(required = false) String confluenceSpaceId, @RequestParam(required = false) String confluenceSpaceKey,
+                           @RequestParam(required = false) String confluenceSpaceName, Model model, HttpSession session) {
+        addCommon(model);
+        addSelection(model, jiraKey, jiraSummary, jiraStatus, repositoryKey, baseBranch, requirementBranch, documentType, confluenceSpaceId, confluenceSpaceKey, confluenceSpaceName);
         try {
-            if (!configuration.aiConfigured()) throw new IllegalStateException("Configura y valida el proveedor de IA antes de generar documentos.");
-            AnalysisData data = resolveAnalysis(session, jiraKey, repositoryKey, baseBranch, requirementBranch); addAnalysis(model, data);
+            if (!configuration.aiConfigured())
+                throw new IllegalStateException("Configura y valida el proveedor de IA antes de generar documentos.");
+            AnalysisData data = resolveAnalysis(session, jiraKey, repositoryKey, baseBranch, requirementBranch);
+            addAnalysis(model, data);
             addActiveAnalysis(model, currentSnapshot(session));
             String type = normalizeDocumentType(documentType);
             AnalysisSnapshot snapshot = currentSnapshot(session);
@@ -139,10 +157,10 @@ public class AnalysisController {
     }
 
     @PostMapping("/documentation/confluence/publish")
-    public String publishConfluence(@RequestParam String documentType, @RequestParam(required=false) String parentId,
-                                    @RequestParam(required=false) String parentTitle,
-                                    @RequestParam(required=false, defaultValue="") String jiraSummary,
-                                    @RequestParam(required=false, defaultValue="") String jiraStatus, Model model, HttpSession session) {
+    public String publishConfluence(@RequestParam String documentType, @RequestParam(required = false) String parentId,
+                                    @RequestParam(required = false) String parentTitle,
+                                    @RequestParam(required = false, defaultValue = "") String jiraSummary,
+                                    @RequestParam(required = false, defaultValue = "") String jiraStatus, Model model, HttpSession session) {
         addCommon(model);
         AnalysisSnapshot snapshot = currentSnapshot(session);
         if (snapshot == null) {
@@ -153,11 +171,16 @@ public class AnalysisController {
         String generated = generatedDocument(snapshot, type);
         addSelection(model, snapshot.jiraKey(), jiraSummary, jiraStatus, snapshot.repositoryKey(), snapshot.baseBranch(), snapshot.requirementBranch(), type,
                 snapshot.confluenceSpaceId(), snapshot.confluenceSpaceKey(), snapshot.confluenceSpaceName());
-        addAnalysis(model, snapshot.data()); addActiveAnalysis(model, snapshot); addGenerationState(model, snapshot, type);
+        addAnalysis(model, snapshot.data());
+        addActiveAnalysis(model, snapshot);
+        addGenerationState(model, snapshot, type);
         if (generated != null) {
-            model.addAttribute("generatedDocument", generated); model.addAttribute("generatedDocumentHtml", markdown.render(generated));
-            model.addAttribute("documentGenerated", true); model.addAttribute("generatedTitle", type + " " + snapshot.jiraKey());
-            model.addAttribute("aiProviderUsed", documentation.providerId()); model.addAttribute("aiModelUsed", documentation.modelId());
+            model.addAttribute("generatedDocument", generated);
+            model.addAttribute("generatedDocumentHtml", markdown.render(generated));
+            model.addAttribute("documentGenerated", true);
+            model.addAttribute("generatedTitle", type + " " + snapshot.jiraKey());
+            model.addAttribute("aiProviderUsed", documentation.providerId());
+            model.addAttribute("aiModelUsed", documentation.modelId());
         }
         try {
             if (generated == null) throw new IllegalStateException("El documento todavía no ha sido generado.");
@@ -204,7 +227,8 @@ public class AnalysisController {
 
     private AnalysisData resolveAnalysis(HttpSession session, String jiraKey, String repositoryKey, String baseBranch, String requirementBranch) {
         Object stored = session.getAttribute(ANALYSIS_SESSION_KEY);
-        if (stored instanceof AnalysisSnapshot snapshot && snapshot.matches(jiraKey, repositoryKey, baseBranch, requirementBranch)) return snapshot.data();
+        if (stored instanceof AnalysisSnapshot snapshot && snapshot.matches(jiraKey, repositoryKey, baseBranch, requirementBranch))
+            return snapshot.data();
         throw new IllegalStateException("El análisis técnico ya no está disponible o cambió el Jira/repositorio/ramas. Ejecuta Analizar nuevamente antes de generar el documento.");
     }
 
@@ -216,16 +240,24 @@ public class AnalysisController {
     }
 
     private void addAnalysis(Model model, AnalysisData data) {
-        model.addAttribute("selectedRepository", data.repository()); model.addAttribute("changeContext", data.context());
-        model.addAttribute("changeSummary", data.summary()); model.addAttribute("analysisComplete", true);
+        model.addAttribute("selectedRepository", data.repository());
+        model.addAttribute("changeContext", data.context());
+        model.addAttribute("changeSummary", data.summary());
+        model.addAttribute("analysisComplete", true);
     }
 
     private void addSelection(Model model, String jiraKey, String jiraSummary, String jiraStatus, String repositoryKey, String baseBranch, String requirementBranch, String documentType,
                               String confluenceSpaceId, String confluenceSpaceKey, String confluenceSpaceName) {
-        model.addAttribute("jiraKey", jiraKey); model.addAttribute("jiraSummary", jiraSummary); model.addAttribute("jiraStatus", jiraStatus);
-        model.addAttribute("repositoryKey", repositoryKey); model.addAttribute("baseBranch", baseBranch);
-        model.addAttribute("requirementBranch", requirementBranch); model.addAttribute("documentType", normalizeDocumentType(documentType));
-        model.addAttribute("confluenceSpaceId", confluenceSpaceId); model.addAttribute("confluenceSpaceKey", confluenceSpaceKey); model.addAttribute("confluenceSpaceName", confluenceSpaceName);
+        model.addAttribute("jiraKey", jiraKey);
+        model.addAttribute("jiraSummary", jiraSummary);
+        model.addAttribute("jiraStatus", jiraStatus);
+        model.addAttribute("repositoryKey", repositoryKey);
+        model.addAttribute("baseBranch", baseBranch);
+        model.addAttribute("requirementBranch", requirementBranch);
+        model.addAttribute("documentType", normalizeDocumentType(documentType));
+        model.addAttribute("confluenceSpaceId", confluenceSpaceId);
+        model.addAttribute("confluenceSpaceKey", confluenceSpaceKey);
+        model.addAttribute("confluenceSpaceName", confluenceSpaceName);
     }
 
     private String normalizeDocumentType(String documentType) {
@@ -240,7 +272,8 @@ public class AnalysisController {
 
     private AnalysisSnapshot storeGeneratedDocument(HttpSession session, String documentType, String generatedDocument) {
         AnalysisSnapshot current = currentSnapshot(session);
-        if (current == null) throw new IllegalStateException("No existe un análisis activo para asociar el documento generado.");
+        if (current == null)
+            throw new IllegalStateException("No existe un análisis activo para asociar el documento generado.");
         String type = normalizeDocumentType(documentType);
         AnalysisSnapshot updated = new AnalysisSnapshot(current.jiraKey(), current.repositoryKey(), current.baseBranch(),
                 current.requirementBranch(), current.data(),
@@ -251,7 +284,7 @@ public class AnalysisController {
     }
 
     private AnalysisSnapshot updateConfluenceDestination(HttpSession session, AnalysisSnapshot current,
-                                                        String spaceId, String spaceKey, String spaceName) {
+                                                         String spaceId, String spaceKey, String spaceName) {
         if (current == null) return null;
         if (java.util.Objects.equals(current.confluenceSpaceId(), spaceId)
                 && java.util.Objects.equals(current.confluenceSpaceKey(), spaceKey)
@@ -291,14 +324,20 @@ public class AnalysisController {
 
     private void addCommon(Model model) {
         List<ConfiguredGitRepository> repositories = configuration.repositories();
-        model.addAttribute("repositories", repositories); model.addAttribute("gitConfigured", !repositories.isEmpty());
-        model.addAttribute("jiraConfigured", configuration.jiraConfigured()); model.addAttribute("aiConfigured", configuration.aiConfigured());
+        model.addAttribute("repositories", repositories);
+        model.addAttribute("gitConfigured", !repositories.isEmpty());
+        model.addAttribute("jiraConfigured", configuration.jiraConfigured());
+        model.addAttribute("aiConfigured", configuration.aiConfigured());
         model.addAttribute("confluenceConfigured", configuration.confluenceConfigured());
     }
 
-    private record AnalysisData(ConfiguredGitRepository repository, GitChangeContext context, Map<String, Long> summary) { }
+    private record AnalysisData(ConfiguredGitRepository repository, GitChangeContext context,
+                                Map<String, Long> summary) {
+    }
+
     private record AnalysisSnapshot(String jiraKey, String repositoryKey, String baseBranch, String requirementBranch,
-                                    AnalysisData data, String generatedDt, String generatedDpc, String confluenceSpaceId, String confluenceSpaceKey, String confluenceSpaceName) {
+                                    AnalysisData data, String generatedDt, String generatedDpc,
+                                    String confluenceSpaceId, String confluenceSpaceKey, String confluenceSpaceName) {
         private boolean matches(String jiraKey, String repositoryKey, String baseBranch, String requirementBranch) {
             return this.jiraKey.equals(jiraKey) && this.repositoryKey.equals(repositoryKey) && this.baseBranch.equals(baseBranch) && this.requirementBranch.equals(requirementBranch);
         }
